@@ -75,6 +75,9 @@ export class TTSService {
     // Cancel any ongoing speech
     speechSynthesis.cancel();
 
+    // Wait for voices to load (Firefox fix)
+    await this.ensureVoicesLoaded();
+
     for (let i = 0; i < phrases.length; i++) {
       const phrase = phrases[i];
 
@@ -92,11 +95,24 @@ export class TTSService {
       const utterance = await this.generateSpeechWebAPI(phrase.phrase, options);
 
       await new Promise((resolve, reject) => {
-        utterance.onend = resolve;
+        utterance.onend = () => {
+          // Small delay between utterances (Firefox fix for audio quality)
+          setTimeout(resolve, 100);
+        };
         utterance.onerror = (event) =>
           reject(new Error(`Speech synthesis failed: ${event.error}`));
 
         speechSynthesis.speak(utterance);
+
+        // Firefox workaround: resume if paused
+        const resumeInterval = setInterval(() => {
+          if (speechSynthesis.paused) {
+            speechSynthesis.resume();
+          }
+          if (!speechSynthesis.speaking) {
+            clearInterval(resumeInterval);
+          }
+        }, 100);
       });
 
       // Add pause after phrase
@@ -104,6 +120,28 @@ export class TTSService {
         await this.sleep(phrase.duration * 1000);
       }
     }
+  }
+
+  /**
+   * Ensure voices are loaded before use
+   * @returns {Promise<void>}
+   */
+  async ensureVoicesLoaded() {
+    return new Promise((resolve) => {
+      const voices = speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        resolve();
+        return;
+      }
+
+      // Wait for voices to load
+      speechSynthesis.onvoiceschanged = () => {
+        resolve();
+      };
+
+      // Timeout fallback
+      setTimeout(resolve, 1000);
+    });
   }
 
   /**

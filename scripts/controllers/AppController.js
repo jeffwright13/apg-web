@@ -45,6 +45,23 @@ export class AppController {
     if (resetBtn) {
       resetBtn.addEventListener('click', () => this.handleReset());
     }
+
+    // Clear individual file inputs
+    const clearPhraseBtn = document.getElementById('clear-phrase-btn');
+    if (clearPhraseBtn) {
+      clearPhraseBtn.addEventListener('click', () => {
+        const phraseInput = document.getElementById('phrase-file');
+        phraseInput.value = '';
+      });
+    }
+
+    const clearSoundBtn = document.getElementById('clear-sound-btn');
+    if (clearSoundBtn) {
+      clearSoundBtn.addEventListener('click', () => {
+        const soundInput = document.getElementById('sound-file');
+        soundInput.value = '';
+      });
+    }
   }
 
   handleReset() {

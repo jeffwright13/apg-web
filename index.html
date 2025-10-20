@@ -33,25 +33,49 @@
               Phrase File
               <small>Text file with phrases and pauses (required)</small>
             </label>
-            <input
-              type="file"
-              id="phrase-file"
-              name="phrase-file"
-              accept=".txt"
-              required
-            />
+            <div style="display: flex; gap: 0.5rem; align-items: center">
+              <input
+                type="file"
+                id="phrase-file"
+                name="phrase-file"
+                accept=".txt"
+                required
+                style="flex: 1"
+              />
+              <button
+                type="button"
+                id="clear-phrase-btn"
+                class="secondary"
+                style="flex: 0 0 auto; padding: 0.5rem 1rem"
+                title="Clear phrase file"
+              >
+                ✕
+              </button>
+            </div>
 
             <!-- Sound File -->
             <label for="sound-file">
               Background Sound
               <small>Optional .wav file to mix with speech</small>
             </label>
-            <input
-              type="file"
-              id="sound-file"
-              name="sound-file"
-              accept=".wav"
-            />
+            <div style="display: flex; gap: 0.5rem; align-items: center">
+              <input
+                type="file"
+                id="sound-file"
+                name="sound-file"
+                accept=".wav"
+                style="flex: 1"
+              />
+              <button
+                type="button"
+                id="clear-sound-btn"
+                class="secondary"
+                style="flex: 0 0 auto; padding: 0.5rem 1rem"
+                title="Clear background sound file"
+              >
+                ✕
+              </button>
+            </div>
 
             <!-- TTS Engine -->
             <label for="tts-engine">
