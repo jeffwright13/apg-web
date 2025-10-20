@@ -1,0 +1,46 @@
+{
+  "name": "apg-web",
+  "version": "1.0.0",
+  "description": "Browser-based audio program generator - creates spoken audio from text with optional background music",
+  "type": "module",
+  "main": "index.html",
+  "scripts": {
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+    "lint": "eslint scripts/**/*.js tests/**/*.js",
+    "lint:fix": "eslint scripts/**/*.js tests/**/*.js --fix",
+    "format": "prettier --write \"**/*.{js,html,css,md}\"",
+    "format:check": "prettier --check \"**/*.{js,html,css,md}\"",
+    "prepare": "husky",
+    "serve": "python3 -m http.server 8080"
+  },
+  "keywords": [
+    "text-to-speech",
+    "audio",
+    "tts",
+    "web-audio"
+  ],
+  "author": "Jeff Wright <jeff.washcloth@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "husky": "^9.0.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.0"
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix",
+      "prettier --write",
+      "jest --bail --findRelatedTests"
+    ],
+    "*.{html,css,md}": [
+      "prettier --write"
+    ]
+  }
+}

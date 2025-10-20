@@ -1,0 +1,3 @@
+npm run lint || exit 1
+npm test -- --bail || exit 1
+echo "✅ Pre-commit checks passed!"

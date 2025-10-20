@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Audio Program Generator</title>
+    <meta
+      name="description"
+      content="Generate spoken audio programs from text with optional background music"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <link rel="stylesheet" href="styles/custom.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>Audio Program Generator</h1>
+        <p>
+          Create spoken audio programs from text with optional background music
+        </p>
+      </header>
+
+      <section id="input-section">
+        <article>
+          <header><h2>Input</h2></header>
+
+          <form id="apg-form">
+            <!-- Phrase File -->
+            <label for="phrase-file">
+              Phrase File
+              <small>Text file with phrases and pauses (required)</small>
+            </label>
+            <input
+              type="file"
+              id="phrase-file"
+              name="phrase-file"
+              accept=".txt"
+              required
+            />
+
+            <!-- Sound File -->
+            <label for="sound-file">
+              Background Sound
+              <small>Optional .wav file to mix with speech</small>
+            </label>
+            <input
+              type="file"
+              id="sound-file"
+              name="sound-file"
+              accept=".wav"
+            />
+
+            <!-- TTS Engine -->
+            <label for="tts-engine">
+              Text-to-Speech Engine
+              <select id="tts-engine" name="tts-engine">
+                <option value="web-speech">Web Speech API (Free)</option>
+                <option value="elevenlabs">ElevenLabs (Premium)</option>
+                <option value="google-cloud">Google Cloud (Premium)</option>
+              </select>
+            </label>
+
+            <!-- Options -->
+            <details>
+              <summary>Advanced Options</summary>
+
+              <label>
+                <input type="checkbox" id="slow-speech" name="slow-speech" />
+                Slow speech (half speed)
+              </label>
+
+              <label for="attenuation">
+                Background attenuation (dB)
+                <input
+                  type="number"
+                  id="attenuation"
+                  name="attenuation"
+                  value="0"
+                  min="-20"
+                  max="20"
+                />
+              </label>
+
+              <label for="fade-in">
+                Fade in (ms)
+                <input
+                  type="number"
+                  id="fade-in"
+                  name="fade-in"
+                  value="3000"
+                  min="0"
+                  max="10000"
+                  step="100"
+                />
+              </label>
+
+              <label for="fade-out">
+                Fade out (ms)
+                <input
+                  type="number"
+                  id="fade-out"
+                  name="fade-out"
+                  value="6000"
+                  min="0"
+                  max="10000"
+                  step="100"
+                />
+              </label>
+            </details>
+
+            <button type="submit" id="generate-btn">Generate Audio</button>
+          </form>
+        </article>
+      </section>
+
+      <section id="progress-section" style="display: none">
+        <article>
+          <header><h2>Progress</h2></header>
+          <progress id="progress-bar" value="0" max="100"></progress>
+          <p id="progress-text">Initializing...</p>
+        </article>
+      </section>
+
+      <section id="output-section" style="display: none">
+        <article>
+          <header><h2>Output</h2></header>
+          <audio id="audio-player" controls></audio>
+          <button id="download-btn">Download Audio</button>
+        </article>
+      </section>
+
+      <footer>
+        <small
+          >Audio Program Generator v1.0.0 | Created by Jeff Wright |
+          <a href="https://github.com/jeffwright13/apg-web">GitHub</a></small
+        >
+      </footer>
+    </main>
+
+    <script type="module" src="scripts/main.js"></script>
+  </body>
+</html>

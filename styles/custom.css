@@ -1,0 +1,51 @@
+/* Custom styles to complement Pico.css */
+
+:root {
+  --spacing-section: 2rem;
+}
+
+main.container {
+  max-width: 800px;
+  padding-top: var(--spacing-section);
+  padding-bottom: var(--spacing-section);
+}
+
+header h1 {
+  margin-bottom: 0.5rem;
+}
+
+header p {
+  color: var(--muted-color);
+  margin-top: 0;
+}
+
+section {
+  margin-bottom: var(--spacing-section);
+}
+
+#progress-bar {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+#progress-text {
+  text-align: center;
+  color: var(--muted-color);
+}
+
+#audio-player {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+footer {
+  text-align: center;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--muted-border-color);
+}
+
+/* Hide sections by default */
+[style*='display: none'] {
+  display: none !important;
+}
