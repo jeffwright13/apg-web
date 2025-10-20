@@ -21,6 +21,15 @@
         <p>
           Create spoken audio programs from text with optional background music
         </p>
+        <div id="browser-warning" style="display: none">
+          <small style="color: var(--del-color)">
+            ⚠️ <strong>Browser Compatibility:</strong> Web Speech API audio
+            quality varies significantly by browser. <strong>Chrome</strong>
+            provides the best results. Firefox and Safari may produce poor
+            quality audio. For consistent, high-quality audio across all
+            browsers, premium TTS integration is coming soon.
+          </small>
+        </div>
       </header>
 
       <section id="input-section">
@@ -81,14 +90,14 @@
             <label for="tts-engine">
               Text-to-Speech Engine
               <select id="tts-engine" name="tts-engine">
+                <option value="google-cloud">
+                  Google Cloud TTS (Free tier - Recommended)
+                </option>
                 <option value="web-speech">
-                  Web Speech API (Free - Playback only, no export/mixing)
+                  Web Speech API (Free - Playback only, browser-dependent quality)
                 </option>
                 <option value="elevenlabs" disabled>
                   ElevenLabs (Premium - Coming soon)
-                </option>
-                <option value="google-cloud" disabled>
-                  Google Cloud (Premium - Coming soon)
                 </option>
               </select>
             </label>

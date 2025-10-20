@@ -77,6 +77,23 @@ export class AppController {
         soundInput.value = '';
       });
     }
+
+    // Show/hide browser warning based on TTS engine selection
+    const ttsEngineSelect = document.getElementById('tts-engine');
+    if (ttsEngineSelect) {
+      ttsEngineSelect.addEventListener('change', (e) => {
+        this.updateBrowserWarning(e.target.value);
+      });
+      // Set initial state
+      this.updateBrowserWarning(ttsEngineSelect.value);
+    }
+  }
+
+  updateBrowserWarning(engine) {
+    const warning = document.getElementById('browser-warning');
+    if (warning) {
+      warning.style.display = engine === 'web-speech' ? 'block' : 'none';
+    }
   }
 
   handleReset() {
@@ -188,6 +205,7 @@ export class AppController {
     playbackMessage.innerHTML = `
       <strong>Ready to play!</strong><br>
       <em>Note: Web Speech API plays directly through your speakers and doesn't support audio export or background mixing.</em><br>
+      <strong>💡 Tip:</strong> Audio quality varies by browser. Chrome provides the best results.<br>
       For export and mixing features, use a premium TTS engine (ElevenLabs or Google Cloud TTS).
     `;
 

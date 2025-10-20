@@ -8,6 +8,7 @@ export class TTSService {
     this.engine = 'web-speech';
     this.apiKey = null;
     this.cancelRequested = false;
+    this.isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
   }
 
   /**
@@ -50,12 +51,27 @@ export class TTSService {
     utterance.pitch = 1.0;
     utterance.volume = 1.0;
 
-    // Get available voices
+    // Get available voices - prefer local/native voices over remote
     const voices = speechSynthesis.getVoices();
     if (voices.length > 0) {
-      // Prefer US English voice
-      const usVoice = voices.find((v) => v.lang === 'en-US');
-      utterance.voice = usVoice || voices[0];
+      let selectedVoice;
+
+      if (this.isFirefox) {
+        // Firefox-specific: ONLY use local voices, avoid remote at all costs
+        selectedVoice =
+          voices.find((v) => v.lang === 'en-US' && v.localService) ||
+          voices.find((v) => v.lang.startsWith('en-') && v.localService) ||
+          // If no local voice found, use first available (fallback)
+          voices[0];
+      } else {
+        // Chrome/Safari: Any voice works fine
+        selectedVoice =
+          voices.find((v) => v.lang === 'en-US') ||
+          voices.find((v) => v.lang.startsWith('en-')) ||
+          voices[0];
+      }
+
+      utterance.voice = selectedVoice;
     }
 
     return utterance;
@@ -110,14 +126,36 @@ export class TTSService {
           return;
         }
 
-        utterance.onend = () => {
-          // Small delay between utterances (Firefox fix for audio quality)
-          setTimeout(resolve, 100);
-        };
-        utterance.onerror = (event) =>
-          reject(new Error(`Speech synthesis failed: ${event.error}`));
+        let hasEnded = false;
 
-        speechSynthesis.speak(utterance);
+        utterance.onend = () => {
+          if (!hasEnded) {
+            hasEnded = true;
+            // Firefox needs even longer delays to prevent audio artifacts
+            const delay = this.isFirefox ? 500 : 100;
+            setTimeout(resolve, delay);
+          }
+        };
+
+        utterance.onerror = (event) => {
+          if (!hasEnded) {
+            hasEnded = true;
+            reject(new Error(`Speech synthesis failed: ${event.error}`));
+          }
+        };
+
+        // Clear the queue before speaking to prevent stacking
+        speechSynthesis.cancel();
+
+        // Firefox needs longer delay before speaking to ensure clean start
+        const startDelay = this.isFirefox ? 200 : 50;
+        setTimeout(() => {
+          if (this.cancelRequested) {
+            reject(new Error('Playback stopped by user'));
+            return;
+          }
+          speechSynthesis.speak(utterance);
+        }, startDelay);
 
         // Firefox workaround: resume if paused
         const resumeInterval = setInterval(() => {
@@ -125,7 +163,10 @@ export class TTSService {
           if (this.cancelRequested) {
             clearInterval(resumeInterval);
             speechSynthesis.cancel();
-            reject(new Error('Playback stopped by user'));
+            if (!hasEnded) {
+              hasEnded = true;
+              reject(new Error('Playback stopped by user'));
+            }
             return;
           }
 
