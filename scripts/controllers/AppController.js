@@ -12,8 +12,8 @@ export class AppController {
   constructor() {
     this.form = null;
     this.generateBtn = null;
-    this.progressSection = null;
     this.outputSection = null;
+    this.progressContainer = null;
     this.audioPlayer = null;
     this.downloadBtn = null;
     this.playBtn = null;
@@ -34,8 +34,8 @@ export class AppController {
   initialize() {
     this.form = document.getElementById('apg-form');
     this.generateBtn = document.getElementById('generate-btn');
-    this.progressSection = document.getElementById('progress-section');
     this.outputSection = document.getElementById('output-section');
+    this.progressContainer = document.getElementById('progress-container');
     this.audioPlayer = document.getElementById('audio-player');
     this.downloadBtn = document.getElementById('download-btn');
     this.playBtn = document.getElementById('play-btn');
@@ -54,11 +54,6 @@ export class AppController {
 
     if (this.stopBtn) {
       this.stopBtn.addEventListener('click', () => this.handleStop());
-    }
-
-    const resetBtn = document.getElementById('reset-btn');
-    if (resetBtn) {
-      resetBtn.addEventListener('click', () => this.handleReset());
     }
 
     // Clear individual file inputs
@@ -96,37 +91,16 @@ export class AppController {
     }
   }
 
-  handleReset() {
-    // Stop any ongoing speech
-    this.handleStop();
-
-    // Reset form
-    this.form.reset();
-
-    // Hide output sections
-    this.progressSection.style.display = 'none';
-    this.outputSection.style.display = 'none';
-
-    // Clear state
-    this.currentAudioBlob = null;
-    this.currentPhrases = null;
-    this.currentOptions = null;
-    this.isPlaying = false;
-
-    // Reset audio player
-    if (this.audioPlayer.src) {
-      URL.revokeObjectURL(this.audioPlayer.src);
-      this.audioPlayer.src = '';
-    }
-  }
 
   async handleSubmit(event) {
     event.preventDefault();
 
     try {
-      // Show progress section
-      this.progressSection.style.display = 'block';
-      this.outputSection.style.display = 'none';
+      // Show output section with progress
+      this.outputSection.style.display = 'block';
+      this.progressContainer.style.display = 'block';
+      document.getElementById('playback-controls').style.display = 'none';
+      document.getElementById('download-controls').style.display = 'none';
       this.generateBtn.disabled = true;
 
       // Get form data
@@ -189,25 +163,19 @@ export class AppController {
   showOutput() {
     const audioUrl = URL.createObjectURL(this.currentAudioBlob);
     this.audioPlayer.src = audioUrl;
-    this.outputSection.style.display = 'block';
+
+    this.progressContainer.style.display = 'none';
+    document.getElementById('playback-controls').style.display = 'none';
+    document.getElementById('download-controls').style.display = 'block';
   }
 
   showWebSpeechControls() {
-    this.outputSection.style.display = 'block';
-
     const playbackControls = document.getElementById('playback-controls');
     const downloadControls = document.getElementById('download-controls');
-    const playbackMessage = document.getElementById('playback-message');
 
+    this.progressContainer.style.display = 'block';
     playbackControls.style.display = 'block';
     downloadControls.style.display = 'none';
-
-    playbackMessage.innerHTML = `
-      <strong>Ready to play!</strong><br>
-      <em>Note: Web Speech API plays directly through your speakers and doesn't support audio export or background mixing.</em><br>
-      <strong>💡 Tip:</strong> Audio quality varies by browser. Chrome provides the best results.<br>
-      For export and mixing features, use a premium TTS engine (ElevenLabs or Google Cloud TTS).
-    `;
 
     this.playBtn.disabled = false;
     this.stopBtn.disabled = true;

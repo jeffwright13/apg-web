@@ -26,8 +26,13 @@
             ⚠️ <strong>Browser Compatibility:</strong> Web Speech API audio
             quality varies significantly by browser. <strong>Chrome</strong>
             provides the best results. Firefox and Safari may produce poor
-            quality audio. For consistent, high-quality audio across all
-            browsers, premium TTS integration is coming soon.
+            quality audio.<br />
+            <em
+              >Note: Web Speech API plays directly through your speakers and
+              doesn't support audio export or background mixing.</em
+            ><br />
+            For consistent, high-quality audio across all browsers with export
+            and mixing support, use Google Cloud TTS.
           </small>
         </div>
       </header>
@@ -101,11 +106,6 @@
                 </option>
               </select>
             </label>
-            <small style="color: var(--muted-color)">
-              💡 Web Speech API plays directly through speakers. For audio
-              export and background mixing, premium TTS engines will be added
-              soon.
-            </small>
 
             <!-- Options -->
             <details>
@@ -155,43 +155,43 @@
               </label>
             </details>
 
-            <div style="display: flex; gap: 1rem">
-              <button type="submit" id="generate-btn" style="flex: 1">
-                Generate Audio
-              </button>
-              <button
-                type="button"
-                id="reset-btn"
-                class="secondary"
-                style="flex: 0 0 auto"
-              >
-                Clear All
-              </button>
-            </div>
           </form>
         </article>
       </section>
 
-      <section id="progress-section" style="display: none">
-        <article>
-          <header><h2>Progress</h2></header>
-          <progress id="progress-bar" value="0" max="100"></progress>
-          <p id="progress-text">Initializing...</p>
-        </article>
-      </section>
-
-      <section id="output-section" style="display: none">
+      <section id="output-section">
         <article>
           <header><h2>Output</h2></header>
+          <button type="submit" form="apg-form" id="generate-btn">
+            Generate Audio
+          </button>
+
+          <!-- Progress -->
+          <div id="progress-container" style="display: none">
+            <progress id="progress-bar" value="0" max="100"></progress>
+            <p id="progress-text" style="text-align: center; margin-top: 0.5rem">
+              Initializing...
+            </p>
+          </div>
+
+          <!-- Playback Controls (Web Speech API) -->
           <div id="playback-controls" style="display: none">
-            <p id="playback-message" style="text-align: center"></p>
-            <div style="display: flex; gap: 1rem; justify-content: center">
+            <div
+              style="
+                display: flex;
+                gap: 1rem;
+                justify-content: center;
+                margin-top: 1rem;
+              "
+            >
               <button id="play-btn">▶ Play Audio</button>
               <button id="stop-btn" class="secondary">⏹ Stop</button>
             </div>
           </div>
+
+          <!-- Download Controls (Premium TTS) -->
           <div id="download-controls" style="display: none">
-            <audio id="audio-player" controls></audio>
+            <audio id="audio-player" controls style="margin-top: 1rem"></audio>
             <button id="download-btn">Download Audio</button>
           </div>
         </article>
