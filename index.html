@@ -57,11 +57,22 @@
             <label for="tts-engine">
               Text-to-Speech Engine
               <select id="tts-engine" name="tts-engine">
-                <option value="web-speech">Web Speech API (Free)</option>
-                <option value="elevenlabs">ElevenLabs (Premium)</option>
-                <option value="google-cloud">Google Cloud (Premium)</option>
+                <option value="web-speech">
+                  Web Speech API (Free - Playback only, no export/mixing)
+                </option>
+                <option value="elevenlabs" disabled>
+                  ElevenLabs (Premium - Coming soon)
+                </option>
+                <option value="google-cloud" disabled>
+                  Google Cloud (Premium - Coming soon)
+                </option>
               </select>
             </label>
+            <small style="color: var(--muted-color)">
+              💡 Web Speech API plays directly through speakers. For audio
+              export and background mixing, premium TTS engines will be added
+              soon.
+            </small>
 
             <!-- Options -->
             <details>
@@ -111,7 +122,19 @@
               </label>
             </details>
 
-            <button type="submit" id="generate-btn">Generate Audio</button>
+            <div style="display: flex; gap: 1rem">
+              <button type="submit" id="generate-btn" style="flex: 1">
+                Generate Audio
+              </button>
+              <button
+                type="button"
+                id="reset-btn"
+                class="secondary"
+                style="flex: 0 0 auto"
+              >
+                Reset Form
+              </button>
+            </div>
           </form>
         </article>
       </section>

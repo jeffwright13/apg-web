@@ -40,6 +40,32 @@ export class AppController {
   attachEventListeners() {
     this.form.addEventListener('submit', (e) => this.handleSubmit(e));
     this.downloadBtn.addEventListener('click', () => this.handleDownload());
+
+    const resetBtn = document.getElementById('reset-btn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => this.handleReset());
+    }
+  }
+
+  handleReset() {
+    // Reset form
+    this.form.reset();
+
+    // Hide output sections
+    this.progressSection.style.display = 'none';
+    this.outputSection.style.display = 'none';
+
+    // Stop any ongoing speech
+    this.ttsService.stopSpeech();
+
+    // Clear audio blob
+    this.currentAudioBlob = null;
+
+    // Reset audio player
+    if (this.audioPlayer.src) {
+      URL.revokeObjectURL(this.audioPlayer.src);
+      this.audioPlayer.src = '';
+    }
   }
 
   async handleSubmit(event) {
@@ -57,16 +83,16 @@ export class AppController {
       const soundFile = formData.get('sound-file');
       const ttsEngine = formData.get('tts-engine');
       const slowSpeech = formData.get('slow-speech') === 'on';
-      const attenuation = parseInt(formData.get('attenuation')) || 0;
-      const fadeIn = parseInt(formData.get('fade-in')) || 3000;
-      const fadeOut = parseInt(formData.get('fade-out')) || 6000;
+
+      // Validate phrase file exists
+      if (!phraseFile || phraseFile.size === 0) {
+        this.showError('Please select a phrase file');
+        return;
+      }
 
       // Validate files
       this.updateProgress(5, 'Validating files...');
       this.fileService.validateFileSize(phraseFile, 10);
-      if (soundFile) {
-        this.fileService.validateFileSize(soundFile, 50);
-      }
 
       // Read phrase file
       this.updateProgress(10, 'Reading phrase file...');
@@ -76,68 +102,37 @@ export class AppController {
       // Set TTS engine
       this.ttsService.setEngine(ttsEngine);
 
-      // Generate speech for each phrase
-      this.updateProgress(20, 'Generating speech...');
-      const audioBuffers = [];
-
-      for (let i = 0; i < phrases.length; i++) {
-        const phrase = phrases[i];
-        const progress = 20 + (60 * (i + 1)) / phrases.length;
-        this.updateProgress(
-          progress,
-          `Generating phrase ${i + 1}/${phrases.length}...`
+      // Check if mixing/export is requested with Web Speech API
+      if (ttsEngine === 'web-speech' && soundFile && soundFile.size > 0) {
+        this.showError(
+          'Background mixing is not supported with Web Speech API. Please use a premium TTS engine (ElevenLabs or Google Cloud) for mixing and export features.'
         );
-
-        // Generate speech
-        const speechBlob = await this.ttsService.generatePhrase(phrase, {
-          slow: slowSpeech,
-        });
-
-        // Convert to AudioBuffer
-        const arrayBuffer = await speechBlob.arrayBuffer();
-        const audioBuffer =
-          await this.audioService.decodeAudioData(arrayBuffer);
-        audioBuffers.push(audioBuffer);
-
-        // Add silence after phrase
-        if (phrase.duration > 0) {
-          const silence = this.audioService.createSilence(phrase.duration);
-          audioBuffers.push(silence);
-        }
+        return;
       }
 
-      // Concatenate all audio
-      this.updateProgress(85, 'Combining audio...');
-      let finalBuffer = this.audioService.concatenateBuffers(audioBuffers);
+      // Handle Web Speech API (playback only)
+      if (ttsEngine === 'web-speech') {
+        this.updateProgress(20, 'Starting playback...');
 
-      // Mix with background sound if provided
-      if (soundFile) {
-        this.updateProgress(90, 'Mixing with background sound...');
-        const soundArrayBuffer =
-          await this.fileService.readAudioFile(soundFile);
-        const backgroundBuffer =
-          await this.audioService.decodeAudioData(soundArrayBuffer);
-
-        finalBuffer = this.audioService.mixBuffers(
-          finalBuffer,
-          backgroundBuffer,
-          { attenuation }
+        await this.ttsService.playPhrasesWebAPI(
+          phrases,
+          { slow: slowSpeech },
+          (current, total) => {
+            const progress = 20 + (70 * current) / total;
+            this.updateProgress(progress, `Playing phrase ${current}/${total}`);
+          }
         );
 
-        // Apply fades to mixed audio
-        finalBuffer = this.audioService.applyFades(finalBuffer, {
-          fadeIn,
-          fadeOut,
-        });
+        this.updateProgress(100, 'Playback complete!');
+        this.showWebSpeechMessage();
+        return;
       }
 
-      // Convert to WAV blob
-      this.updateProgress(95, 'Finalizing...');
-      this.currentAudioBlob = this.audioService.audioBufferToWav(finalBuffer);
-
-      // Show output
-      this.updateProgress(100, 'Complete!');
-      this.showOutput();
+      // Premium TTS engines (with mixing/export support)
+      // TODO: Implement ElevenLabs and Google Cloud TTS
+      this.showError(
+        `${ttsEngine} is not yet implemented. Please use Web Speech API for now, or wait for premium TTS integration.`
+      );
     } catch (error) {
       this.showError(error.message);
     } finally {
@@ -149,6 +144,29 @@ export class AppController {
     const audioUrl = URL.createObjectURL(this.currentAudioBlob);
     this.audioPlayer.src = audioUrl;
     this.outputSection.style.display = 'block';
+  }
+
+  showWebSpeechMessage() {
+    this.outputSection.style.display = 'block';
+    this.audioPlayer.style.display = 'none';
+    this.downloadBtn.style.display = 'none';
+
+    const message = document.createElement('p');
+    message.innerHTML = `
+      <strong>Playback complete!</strong><br><br>
+      <em>Note: Web Speech API plays directly through your speakers and doesn't support audio export or background mixing.</em><br><br>
+      For export and mixing features, use a premium TTS engine (ElevenLabs or Google Cloud TTS).
+    `;
+    message.style.textAlign = 'center';
+    message.style.color = 'var(--muted-color)';
+
+    // Clear previous messages
+    const existingMessage = this.outputSection.querySelector('p');
+    if (existingMessage) {
+      existingMessage.remove();
+    }
+
+    this.outputSection.querySelector('article').appendChild(message);
   }
 
   handleDownload() {

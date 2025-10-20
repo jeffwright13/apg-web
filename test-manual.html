@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web Speech API Test</title>
+  </head>
+  <body>
+    <h1>Web Speech API Test</h1>
+    <button id="test-btn">Test Speech</button>
+    <p id="status">Click button to test</p>
+
+    <script>
+      document.getElementById('test-btn').addEventListener('click', () => {
+        const status = document.getElementById('status');
+
+        if (!('speechSynthesis' in window)) {
+          status.textContent = 'ERROR: Web Speech API not supported';
+          return;
+        }
+
+        status.textContent = 'Speaking...';
+
+        const utterance = new SpeechSynthesisUtterance(
+          'Hello, this is a test of the Web Speech API'
+        );
+
+        utterance.onend = () => {
+          status.textContent = 'Speech complete!';
+        };
+
+        utterance.onerror = (e) => {
+          status.textContent = `ERROR: ${e.error}`;
+        };
+
+        speechSynthesis.speak(utterance);
+      });
+    </script>
+  </body>
+</html>

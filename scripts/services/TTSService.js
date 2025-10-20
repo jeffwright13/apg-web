@@ -27,55 +27,101 @@ export class TTSService {
 
   /**
    * Generate speech from text using Web Speech API
+   * Note: Web Speech API plays directly through speakers, doesn't return audio data
    * @param {string} text - Text to speak
    * @param {Object} options - Speech options
-   * @returns {Promise<Blob>} Audio blob
+   * @returns {Promise<SpeechSynthesisUtterance>} Utterance object (for playback only)
    */
   async generateSpeechWebAPI(text, options = {}) {
     if (!text || text === '*') {
-      // Return silence for asterisk or empty text
-      return this.generateSilence(options.duration || 1);
+      // Return null for silence - will be handled separately
+      return null;
     }
 
     if (!('speechSynthesis' in window)) {
       throw new Error('Web Speech API not supported in this browser');
     }
 
-    return new Promise((resolve, reject) => {
-      const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(text);
 
-      // Configure speech parameters
-      utterance.rate = options.slow ? 0.5 : 1.0;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
+    // Configure speech parameters
+    utterance.rate = options.slow ? 0.5 : 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
 
-      // Get available voices
-      const voices = speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        // Prefer US English voice
-        const usVoice = voices.find((v) => v.lang === 'en-US');
-        utterance.voice = usVoice || voices[0];
+    // Get available voices
+    const voices = speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      // Prefer US English voice
+      const usVoice = voices.find((v) => v.lang === 'en-US');
+      utterance.voice = usVoice || voices[0];
+    }
+
+    return utterance;
+  }
+
+  /**
+   * Play phrases sequentially using Web Speech API
+   * @param {Array} phrases - Array of phrase objects
+   * @param {Object} options - Playback options
+   * @param {Function} onProgress - Progress callback
+   * @returns {Promise<void>}
+   */
+  async playPhrasesWebAPI(phrases, options = {}, onProgress = null) {
+    if (!('speechSynthesis' in window)) {
+      throw new Error('Web Speech API not supported in this browser');
+    }
+
+    // Cancel any ongoing speech
+    speechSynthesis.cancel();
+
+    for (let i = 0; i < phrases.length; i++) {
+      const phrase = phrases[i];
+
+      if (onProgress) {
+        onProgress(i + 1, phrases.length);
       }
 
-      utterance.onstart = () => {
-        // Note: Web Speech API doesn't provide direct audio access
-        // We'll need to use a different approach for actual audio capture
-        // For now, this is a placeholder that will need enhancement
-      };
+      // Handle silence
+      if (phrase.phrase === '*' || !phrase.phrase) {
+        await this.sleep(phrase.duration * 1000);
+        continue;
+      }
 
-      utterance.onend = () => {
-        // For Web Speech API, we can't easily capture the audio
-        // We'll return a marker blob and handle this differently
-        const blob = new Blob([text], { type: 'text/plain' });
-        resolve(blob);
-      };
+      // Generate and speak utterance
+      const utterance = await this.generateSpeechWebAPI(phrase.phrase, options);
 
-      utterance.onerror = (event) => {
-        reject(new Error(`Speech synthesis failed: ${event.error}`));
-      };
+      await new Promise((resolve, reject) => {
+        utterance.onend = resolve;
+        utterance.onerror = (event) =>
+          reject(new Error(`Speech synthesis failed: ${event.error}`));
 
-      speechSynthesis.speak(utterance);
-    });
+        speechSynthesis.speak(utterance);
+      });
+
+      // Add pause after phrase
+      if (phrase.duration > 0) {
+        await this.sleep(phrase.duration * 1000);
+      }
+    }
+  }
+
+  /**
+   * Stop any ongoing speech
+   */
+  stopSpeech() {
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
+  }
+
+  /**
+   * Sleep utility
+   * @param {number} ms - Milliseconds to sleep
+   * @returns {Promise<void>}
+   */
+  sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
