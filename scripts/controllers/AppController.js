@@ -16,6 +16,8 @@ export class AppController {
     this.outputSection = null;
     this.audioPlayer = null;
     this.downloadBtn = null;
+    this.playBtn = null;
+    this.stopBtn = null;
 
     // Services
     this.fileService = new FileService();
@@ -24,6 +26,9 @@ export class AppController {
 
     // State
     this.currentAudioBlob = null;
+    this.currentPhrases = null;
+    this.currentOptions = null;
+    this.isPlaying = false;
   }
 
   initialize() {
@@ -33,6 +38,8 @@ export class AppController {
     this.outputSection = document.getElementById('output-section');
     this.audioPlayer = document.getElementById('audio-player');
     this.downloadBtn = document.getElementById('download-btn');
+    this.playBtn = document.getElementById('play-btn');
+    this.stopBtn = document.getElementById('stop-btn');
 
     this.attachEventListeners();
   }
@@ -40,6 +47,14 @@ export class AppController {
   attachEventListeners() {
     this.form.addEventListener('submit', (e) => this.handleSubmit(e));
     this.downloadBtn.addEventListener('click', () => this.handleDownload());
+
+    if (this.playBtn) {
+      this.playBtn.addEventListener('click', () => this.handlePlay());
+    }
+
+    if (this.stopBtn) {
+      this.stopBtn.addEventListener('click', () => this.handleStop());
+    }
 
     const resetBtn = document.getElementById('reset-btn');
     if (resetBtn) {
@@ -65,6 +80,9 @@ export class AppController {
   }
 
   handleReset() {
+    // Stop any ongoing speech
+    this.handleStop();
+
     // Reset form
     this.form.reset();
 
@@ -72,11 +90,11 @@ export class AppController {
     this.progressSection.style.display = 'none';
     this.outputSection.style.display = 'none';
 
-    // Stop any ongoing speech
-    this.ttsService.stopSpeech();
-
-    // Clear audio blob
+    // Clear state
     this.currentAudioBlob = null;
+    this.currentPhrases = null;
+    this.currentOptions = null;
+    this.isPlaying = false;
 
     // Reset audio player
     if (this.audioPlayer.src) {
@@ -129,19 +147,13 @@ export class AppController {
 
       // Handle Web Speech API (playback only)
       if (ttsEngine === 'web-speech') {
-        this.updateProgress(20, 'Starting playback...');
+        this.updateProgress(100, 'Ready to play!');
 
-        await this.ttsService.playPhrasesWebAPI(
-          phrases,
-          { slow: slowSpeech },
-          (current, total) => {
-            const progress = 20 + (70 * current) / total;
-            this.updateProgress(progress, `Playing phrase ${current}/${total}`);
-          }
-        );
+        // Store phrases and options for playback
+        this.currentPhrases = phrases;
+        this.currentOptions = { slow: slowSpeech };
 
-        this.updateProgress(100, 'Playback complete!');
-        this.showWebSpeechMessage();
+        this.showWebSpeechControls();
         return;
       }
 
@@ -163,27 +175,66 @@ export class AppController {
     this.outputSection.style.display = 'block';
   }
 
-  showWebSpeechMessage() {
+  showWebSpeechControls() {
     this.outputSection.style.display = 'block';
-    this.audioPlayer.style.display = 'none';
-    this.downloadBtn.style.display = 'none';
 
-    const message = document.createElement('p');
-    message.innerHTML = `
-      <strong>Playback complete!</strong><br><br>
-      <em>Note: Web Speech API plays directly through your speakers and doesn't support audio export or background mixing.</em><br><br>
+    const playbackControls = document.getElementById('playback-controls');
+    const downloadControls = document.getElementById('download-controls');
+    const playbackMessage = document.getElementById('playback-message');
+
+    playbackControls.style.display = 'block';
+    downloadControls.style.display = 'none';
+
+    playbackMessage.innerHTML = `
+      <strong>Ready to play!</strong><br>
+      <em>Note: Web Speech API plays directly through your speakers and doesn't support audio export or background mixing.</em><br>
       For export and mixing features, use a premium TTS engine (ElevenLabs or Google Cloud TTS).
     `;
-    message.style.textAlign = 'center';
-    message.style.color = 'var(--muted-color)';
 
-    // Clear previous messages
-    const existingMessage = this.outputSection.querySelector('p');
-    if (existingMessage) {
-      existingMessage.remove();
+    this.playBtn.disabled = false;
+    this.stopBtn.disabled = true;
+  }
+
+  async handlePlay() {
+    if (!this.currentPhrases || this.isPlaying) return;
+
+    try {
+      this.isPlaying = true;
+      this.playBtn.disabled = true;
+      this.stopBtn.disabled = false;
+      this.generateBtn.disabled = true;
+
+      await this.ttsService.playPhrasesWebAPI(
+        this.currentPhrases,
+        this.currentOptions,
+        (current, total) => {
+          this.updateProgress(
+            (100 * current) / total,
+            `Playing phrase ${current}/${total}`
+          );
+        }
+      );
+
+      this.updateProgress(100, 'Playback complete!');
+    } catch (error) {
+      if (error.message !== 'Playback stopped by user') {
+        this.showError(error.message);
+      }
+    } finally {
+      this.isPlaying = false;
+      this.playBtn.disabled = false;
+      this.stopBtn.disabled = true;
+      this.generateBtn.disabled = false;
     }
+  }
 
-    this.outputSection.querySelector('article').appendChild(message);
+  handleStop() {
+    this.ttsService.stopSpeech();
+    this.isPlaying = false;
+    this.playBtn.disabled = false;
+    this.stopBtn.disabled = true;
+    this.generateBtn.disabled = false;
+    this.updateProgress(0, 'Playback stopped');
   }
 
   handleDownload() {

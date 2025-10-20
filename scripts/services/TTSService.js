@@ -7,6 +7,7 @@ export class TTSService {
   constructor() {
     this.engine = 'web-speech';
     this.apiKey = null;
+    this.cancelRequested = false;
   }
 
   /**
@@ -72,6 +73,9 @@ export class TTSService {
       throw new Error('Web Speech API not supported in this browser');
     }
 
+    // Reset cancellation flag
+    this.cancelRequested = false;
+
     // Cancel any ongoing speech
     speechSynthesis.cancel();
 
@@ -79,6 +83,11 @@ export class TTSService {
     await this.ensureVoicesLoaded();
 
     for (let i = 0; i < phrases.length; i++) {
+      // Check for cancellation
+      if (this.cancelRequested) {
+        throw new Error('Playback stopped by user');
+      }
+
       const phrase = phrases[i];
 
       if (onProgress) {
@@ -87,7 +96,7 @@ export class TTSService {
 
       // Handle silence
       if (phrase.phrase === '*' || !phrase.phrase) {
-        await this.sleep(phrase.duration * 1000);
+        await this.sleepCancellable(phrase.duration * 1000);
         continue;
       }
 
@@ -95,6 +104,12 @@ export class TTSService {
       const utterance = await this.generateSpeechWebAPI(phrase.phrase, options);
 
       await new Promise((resolve, reject) => {
+        // Check for cancellation before speaking
+        if (this.cancelRequested) {
+          reject(new Error('Playback stopped by user'));
+          return;
+        }
+
         utterance.onend = () => {
           // Small delay between utterances (Firefox fix for audio quality)
           setTimeout(resolve, 100);
@@ -106,6 +121,14 @@ export class TTSService {
 
         // Firefox workaround: resume if paused
         const resumeInterval = setInterval(() => {
+          // Check for cancellation in interval
+          if (this.cancelRequested) {
+            clearInterval(resumeInterval);
+            speechSynthesis.cancel();
+            reject(new Error('Playback stopped by user'));
+            return;
+          }
+
           if (speechSynthesis.paused) {
             speechSynthesis.resume();
           }
@@ -117,7 +140,7 @@ export class TTSService {
 
       // Add pause after phrase
       if (phrase.duration > 0) {
-        await this.sleep(phrase.duration * 1000);
+        await this.sleepCancellable(phrase.duration * 1000);
       }
     }
   }
@@ -148,6 +171,7 @@ export class TTSService {
    * Stop any ongoing speech
    */
   stopSpeech() {
+    this.cancelRequested = true;
     if ('speechSynthesis' in window) {
       speechSynthesis.cancel();
     }
@@ -160,6 +184,32 @@ export class TTSService {
    */
   sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Sleep with cancellation support
+   * @param {number} ms - Milliseconds to sleep
+   * @returns {Promise<void>}
+   */
+  sleepCancellable(ms) {
+    return new Promise((resolve, reject) => {
+      const checkInterval = 100;
+      let elapsed = 0;
+
+      const intervalId = setInterval(() => {
+        if (this.cancelRequested) {
+          clearInterval(intervalId);
+          reject(new Error('Playback stopped by user'));
+          return;
+        }
+
+        elapsed += checkInterval;
+        if (elapsed >= ms) {
+          clearInterval(intervalId);
+          resolve();
+        }
+      }, checkInterval);
+    });
   }
 
   /**

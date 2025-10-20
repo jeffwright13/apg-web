@@ -46,10 +46,10 @@
                 type="button"
                 id="clear-phrase-btn"
                 class="secondary"
-                style="flex: 0 0 auto; padding: 0.5rem 1rem"
+                style="flex: 0 0 auto"
                 title="Clear phrase file"
               >
-                ✕
+                Clear
               </button>
             </div>
 
@@ -70,10 +70,10 @@
                 type="button"
                 id="clear-sound-btn"
                 class="secondary"
-                style="flex: 0 0 auto; padding: 0.5rem 1rem"
+                style="flex: 0 0 auto"
                 title="Clear background sound file"
               >
-                ✕
+                Clear
               </button>
             </div>
 
@@ -156,7 +156,7 @@
                 class="secondary"
                 style="flex: 0 0 auto"
               >
-                Reset Form
+                Clear All
               </button>
             </div>
           </form>
@@ -174,8 +174,17 @@
       <section id="output-section" style="display: none">
         <article>
           <header><h2>Output</h2></header>
-          <audio id="audio-player" controls></audio>
-          <button id="download-btn">Download Audio</button>
+          <div id="playback-controls" style="display: none">
+            <p id="playback-message" style="text-align: center"></p>
+            <div style="display: flex; gap: 1rem; justify-content: center">
+              <button id="play-btn">▶ Play Audio</button>
+              <button id="stop-btn" class="secondary">⏹ Stop</button>
+            </div>
+          </div>
+          <div id="download-controls" style="display: none">
+            <audio id="audio-player" controls></audio>
+            <button id="download-btn">Download Audio</button>
+          </div>
         </article>
       </section>
 
