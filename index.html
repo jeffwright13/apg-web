@@ -35,21 +35,6 @@
             </select>
           </div>
         </div>
-        
-        <div id="browser-warning" style="display: none">
-          <small style="color: var(--del-color)">
-            ⚠️ <strong>Browser Compatibility:</strong> Web Speech API audio
-            quality varies significantly by browser. <strong>Chrome</strong>
-            provides the best results. Firefox and Safari may produce poor
-            quality audio.<br />
-            <em
-              >Note: Web Speech API plays directly through your speakers and
-              doesn't support audio export or background mixing.</em
-            ><br />
-            For consistent, high-quality audio across all browsers with export
-            and mixing support, use Google Cloud TTS.
-          </small>
-        </div>
       </header>
 
       <section id="input-section">
@@ -130,6 +115,21 @@
                   ElevenLabs (premium feature - coming soon)
                 </option>
               </select>
+
+            <!-- Browser Warning (Web Speech API) -->
+            <div id="browser-warning" style="display: none; margin-top: 0.5rem;">
+              <small style="color: var(--del-color)">
+                <em>
+                    Web Speech API plays directly through your speakers and doesn't support audio export or background mixing.
+                </em><br />
+                <em>
+                    Web Speech API audio quality varies significantly by browser. Chrome and Edge provide the best results. Firefox and Safari may produce poor quality audio.
+                </em><br />
+                <em>
+                    For consistent, high-quality audio across all browsers with export and mixing support, select the Google Cloud TTS option in the dropdown.
+                </em><br />
+              </small>
+            </div>
 
             <!-- gTTS Settings -->
             <div id="gtts-settings" style="display: none">
