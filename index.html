@@ -124,10 +124,6 @@
                 </option>
               </select>
             </label>
-            <small style="color: var(--muted-color)">
-              💡 Google Cloud TTS requires a free API key (one-time setup, 5
-              minutes). Free tier: 1M characters/month.
-            </small>
 
             <!-- gTTS Settings -->
             <div id="gtts-settings" style="display: none">
@@ -147,23 +143,24 @@
 
             <!-- Google Cloud TTS Settings -->
             <div id="google-cloud-settings" style="display: none">
-              <label for="google-api-key">
-                Google Cloud API Key
-                <small
-                  ><a
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+                <label for="google-api-key" style="margin-bottom: 0;">
+                  Google Cloud API Key
+                </label>
+                <small>
+                  <a
                     href="https://console.cloud.google.com/apis/credentials"
                     target="_blank"
                     >Get API Key</a
                   >
-                  | Stored locally in browser</small
-                >
-              </label>
+                </small>
+              </div>
               <div style="display: flex; gap: 0.5rem">
                 <input
                   type="password"
                   id="google-api-key"
                   name="google-api-key"
-                  placeholder="Enter your Google Cloud API key"
+                  placeholder="Enter your Google Cloud API key (stored locally in browser)"
                   style="flex: 1"
                 />
                 <button
