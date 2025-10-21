@@ -94,6 +94,9 @@ export class AppController {
 
     // Update slider value displays
     this.setupSliderValueDisplays();
+
+    // Setup theme switcher
+    this.setupThemeSwitcher();
   }
 
   setupSliderValueDisplays() {
@@ -112,6 +115,47 @@ export class AppController {
         });
       }
     });
+  }
+
+  setupThemeSwitcher() {
+    const themeSelect = document.getElementById('theme-select');
+    if (!themeSelect) return;
+
+    // Load saved theme preference
+    const savedTheme = localStorage.getItem('theme') || 'auto';
+    themeSelect.value = savedTheme;
+    this.applyTheme(savedTheme);
+
+    // Listen for theme changes
+    themeSelect.addEventListener('change', (e) => {
+      const theme = e.target.value;
+      localStorage.setItem('theme', theme);
+      this.applyTheme(theme);
+    });
+
+    // Listen for system theme changes when in auto mode
+    if (window.matchMedia) {
+      window
+        .matchMedia('(prefers-color-scheme: dark)')
+        .addEventListener('change', () => {
+          if (themeSelect.value === 'auto') {
+            this.applyTheme('auto');
+          }
+        });
+    }
+  }
+
+  applyTheme(theme) {
+    const html = document.documentElement;
+
+    if (theme === 'auto') {
+      // Remove explicit theme, let system preference decide
+      html.removeAttribute('data-theme');
+    } else if (theme === 'light') {
+      html.setAttribute('data-theme', 'light');
+    } else if (theme === 'dark') {
+      html.setAttribute('data-theme', 'dark');
+    }
   }
 
   updateEngineUI(engine) {
