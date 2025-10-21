@@ -58,36 +58,39 @@
 
           <form id="apg-form">
             <!-- Phrase File -->
-            <label for="phrase-file">
-              Phrase File
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+              <label for="phrase-file" style="margin-bottom: 0;">
+                Phrase File
+              </label>
               <small>Text file with phrases and pauses (required)</small>
-            </label>
-            <div style="display: flex; gap: 0.5rem; align-items: center">
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: stretch">
               <input
                 type="file"
                 id="phrase-file"
                 name="phrase-file"
                 accept=".txt"
-                required
                 style="flex: 1"
               />
               <button
                 type="button"
                 id="clear-phrase-btn"
                 class="secondary"
-                style="flex: 0 0 auto"
+                style="flex: 0 0 auto; height: auto;"
                 title="Clear phrase file"
               >
                 Clear
               </button>
             </div>
 
-            <!-- Sound File -->
-            <label for="sound-file">
-              Background Sound
+            <!-- Background Sound -->
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+              <label for="sound-file" style="margin-bottom: 0;">
+                Background Sound
+              </label>
               <small>Optional .wav file to mix with speech</small>
-            </label>
-            <div style="display: flex; gap: 0.5rem; align-items: center">
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: stretch">
               <input
                 type="file"
                 id="sound-file"
@@ -99,7 +102,7 @@
                 type="button"
                 id="clear-sound-btn"
                 class="secondary"
-                style="flex: 0 0 auto"
+                style="flex: 0 0 auto; height: auto;"
                 title="Clear background sound file"
               >
                 Clear
@@ -111,16 +114,16 @@
               Text-to-Speech Engine
               <select id="tts-engine" name="tts-engine">
                 <option value="google-cloud">
-                  Google Cloud TTS (Free tier - Recommended)
+                  Google Cloud TTS (free tier - recommended)
                 </option>
                 <option value="web-speech">
-                  Web Speech API (Free - Playback only, browser-dependent)
+                  Web Speech API (free - playback only, browser-dependent)
                 </option>
                 <option value="gtts" disabled>
-                  Google Translate TTS (Coming soon - requires backend)
+                  Google Translate TTS (legacy feaure - coming soon)
                 </option>
                 <option value="elevenlabs" disabled>
-                  ElevenLabs (Premium - Coming soon)
+                  ElevenLabs (premium feature - coming soon)
                 </option>
               </select>
             </label>
