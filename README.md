@@ -72,6 +72,118 @@ Browser-based audio program generator - creates spoken audio from text with opti
 
 **Best for**: Quick previews, testing (not recommended for production)
 
+## TTS Engine Setup Guides
+
+### Google Cloud Text-to-Speech Setup
+
+**Time Required**: ~5 minutes (one-time setup)
+
+#### Step 1: Create Google Cloud Account
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Sign in with your Google account
+3. Accept the terms of service
+
+#### Step 2: Create a New Project
+
+1. Click the project dropdown at the top of the page
+2. Click "New Project"
+3. Enter a project name (e.g., "Audio Program Generator")
+4. Click "Create"
+
+#### Step 3: Enable Text-to-Speech API
+
+1. In the search bar, type "Text-to-Speech API"
+2. Click on "Cloud Text-to-Speech API"
+3. Click "Enable"
+4. Wait for the API to be enabled (~30 seconds)
+
+#### Step 4: Enable Billing
+
+⚠️ **Required even for free tier**
+
+1. Click the hamburger menu (☰) → "Billing"
+2. Click "Link a billing account" or "Add billing account"
+3. Enter your credit card information
+4. **Don't worry**: You won't be charged unless you exceed the free tier (1M characters/month)
+5. You can set up billing alerts to notify you before any charges
+
+**Setting up billing alerts** (recommended):
+1. Go to "Billing" → "Budgets & alerts"
+2. Click "Create budget"
+3. Set budget to $1 (or any amount)
+4. Set alert threshold to 50%, 90%, 100%
+5. You'll receive email alerts if you approach the limit
+
+#### Step 5: Create API Key
+
+1. Click the hamburger menu (☰) → "APIs & Services" → "Credentials"
+2. Click "Create Credentials" → "API key"
+3. Copy the API key (it will look like: `AIzaSyC...`)
+4. **Optional but recommended**: Click "Restrict key"
+   - Under "API restrictions", select "Restrict key"
+   - Select "Cloud Text-to-Speech API"
+   - Click "Save"
+
+#### Step 6: Use API Key in App
+
+1. Open the Audio Program Generator in your browser
+2. Select "Google Cloud TTS" from the TTS Engine dropdown
+3. Paste your API key in the "Google Cloud API Key" field
+4. Click "Save"
+5. The key is stored locally in your browser (not sent anywhere else)
+
+**Done!** You can now generate high-quality audio with Google Cloud TTS.
+
+---
+
+### Microsoft Edge TTS Setup (Alternative - Coming Soon)
+
+**Free alternative with no API key required**
+
+Microsoft Edge TTS is an unofficial API that provides free, high-quality neural voices without requiring an API key or billing setup.
+
+**Status**: Implementation planned for future release
+
+**Advantages**:
+- ✅ Completely free
+- ✅ No API key required
+- ✅ No billing setup needed
+- ✅ Excellent voice quality (Neural voices)
+- ✅ Works from browser
+
+**Limitations**:
+- ⚠️ Unofficial API (not officially supported by Microsoft)
+- ⚠️ Could potentially be rate-limited or discontinued
+- ⚠️ Fewer voice options than Google Cloud TTS
+
+**When available**, this will be a great option for users who want high-quality TTS without the API key setup process.
+
+---
+
+### Troubleshooting
+
+#### "Invalid API key" error
+- Make sure you copied the entire API key
+- Check that you enabled the Text-to-Speech API
+- Verify the API key restrictions (if set) include Text-to-Speech API
+
+#### "Billing not enabled" error
+- Billing must be enabled even for free tier usage
+- Go to Billing section and link a payment method
+- Wait a few minutes after enabling billing
+
+#### "Quota exceeded" error
+- You've exceeded the free tier (1M characters/month)
+- Check your usage in Google Cloud Console → APIs & Services → Dashboard
+- Either wait for the monthly reset or upgrade to paid tier
+
+#### API key security
+- Your API key is stored locally in your browser (localStorage)
+- It's never sent to any server except Google's TTS API
+- You can clear it anytime by clicking "Clear" in the browser
+- For production use, consider restricting the API key to specific domains
+
 ## Phrase File Format
 
 Create a text file with phrases and durations:
