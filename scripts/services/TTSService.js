@@ -5,6 +5,7 @@
 
 import { GoogleCloudTTSAdapter } from './GoogleCloudTTSAdapter.js';
 import { GTTSAdapter } from './GTTSAdapter.js';
+import { OpenAITTSAdapter } from './OpenAITTSAdapter.js';
 
 export class TTSService {
   constructor() {
@@ -16,6 +17,7 @@ export class TTSService {
     this.adapters = {
       'gtts': new GTTSAdapter(),
       'google-cloud': new GoogleCloudTTSAdapter(),
+      'openai': new OpenAITTSAdapter(),
     };
     
     // Load API key from localStorage
@@ -27,9 +29,16 @@ export class TTSService {
    */
   loadApiKey() {
     try {
-      const apiKey = localStorage.getItem('google-cloud-tts-api-key');
-      if (apiKey && this.adapters['google-cloud']) {
-        this.adapters['google-cloud'].setApiKey(apiKey);
+      // Load Google Cloud API key
+      const googleApiKey = localStorage.getItem('google-cloud-tts-api-key');
+      if (googleApiKey && this.adapters['google-cloud']) {
+        this.adapters['google-cloud'].setApiKey(googleApiKey);
+      }
+      
+      // Load OpenAI API key
+      const openaiApiKey = localStorage.getItem('openai-tts-api-key');
+      if (openaiApiKey && this.adapters['openai']) {
+        this.adapters['openai'].setApiKey(openaiApiKey);
       }
     } catch (e) {
       console.warn('Failed to load API key from localStorage', e);
@@ -39,12 +48,22 @@ export class TTSService {
   /**
    * Save API key to localStorage
    * @param {string} apiKey - API key
+   * @param {string} engine - Engine name (optional, defaults to current engine)
    */
-  saveApiKey(apiKey) {
+  saveApiKey(apiKey, engine = null) {
+    const targetEngine = engine || this.engine;
+    
     try {
-      localStorage.setItem('google-cloud-tts-api-key', apiKey);
-      if (this.adapters['google-cloud']) {
-        this.adapters['google-cloud'].setApiKey(apiKey);
+      if (targetEngine === 'google-cloud') {
+        localStorage.setItem('google-cloud-tts-api-key', apiKey);
+        if (this.adapters['google-cloud']) {
+          this.adapters['google-cloud'].setApiKey(apiKey);
+        }
+      } else if (targetEngine === 'openai') {
+        localStorage.setItem('openai-tts-api-key', apiKey);
+        if (this.adapters['openai']) {
+          this.adapters['openai'].setApiKey(apiKey);
+        }
       }
     } catch (e) {
       console.warn('Failed to save API key to localStorage', e);

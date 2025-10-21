@@ -1,8 +1,7 @@
+*; 3
 Welcome to your audio program; 2
-Take a deep breath; 3
-*; 2
-Relax your shoulders; 3
-*; 2
+Take a deep breath and relax; 6
+Relax twice as much; 6
 Feel the tension release; 3
-*; 5
 You are calm and centered; 2
+Goodbye; 6

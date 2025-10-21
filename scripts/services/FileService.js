@@ -43,8 +43,12 @@ export class FileService {
       return null; // Audio file is optional
     }
 
-    if (!file.name.endsWith('.wav')) {
-      throw new Error('Audio file must be a .wav file');
+    // Supported audio formats (Web Audio API can decode these)
+    const supportedExtensions = ['.wav', '.mp3', '.ogg', '.m4a', '.aac', '.flac', '.aiff', '.aif', '.webm'];
+    const fileExtension = file.name.toLowerCase().match(/\.[^.]+$/)?.[0];
+    
+    if (!fileExtension || !supportedExtensions.includes(fileExtension)) {
+      throw new Error(`Unsupported audio format. Supported formats: ${supportedExtensions.join(', ')}`);
     }
 
     return new Promise((resolve, reject) => {

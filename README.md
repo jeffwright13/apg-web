@@ -5,8 +5,8 @@ Browser-based audio program generator - creates spoken audio from text with opti
 ## Features
 
 - **Text-to-Speech**: Convert text files to spoken audio
-- **Multiple TTS Engines**: Google Translate TTS (free), Google Cloud TTS (premium), Web Speech API
-- **Background Music**: Mix speech with background audio
+- **Multiple TTS Engines**: OpenAI TTS, Google Cloud TTS, Web Speech API
+- **Background Music**: Mix speech with background audio (supports MP3, WAV, OGG, M4A, AAC, FLAC, AIFF)
 - **Audio Export**: Download generated audio as WAV files
 - **Browser-Based**: No installation required, runs entirely in your browser
 - **Modern UI**: Clean, responsive interface with Pico.css
@@ -27,7 +27,31 @@ Browser-based audio program generator - creates spoken audio from text with opti
 
 ## Text-to-Speech Engines
 
-### Google Cloud Text-to-Speech - **Recommended Default**
+### OpenAI TTS - **Simple & Affordable**
+
+**High quality, pay-as-you-go pricing**
+
+- 💰 **Cost**: $15/1M characters (standard), $30/1M (HD)
+- 🔑 **Setup Required**:
+  1. Create [OpenAI account](https://platform.openai.com/)
+  2. Add payment method (pay-as-you-go, no monthly fees)
+  3. Create API key
+- ✅ **Quality**: Excellent (6 natural-sounding voices)
+- ✅ **Features**: Voice selection, speed control (0.25x-4x)
+- ✅ **Export**: Full audio export and mixing support
+- ✅ **Simplicity**: No billing account setup hassles
+
+**Pricing Details**:
+- Pay only for what you use
+- No monthly subscription required
+- Example: 100K characters = $1.50 (standard) or $3.00 (HD)
+- Example: 1000 phrases @ 150 chars = $2.25 (standard)
+
+**Best for**: Users who want simple setup, predictable per-use costs, and excellent quality
+
+### Google Cloud Text-to-Speech
+
+**High quality, generous free tier, complex setup**
 
 **High quality, requires API key and billing setup**
 
@@ -73,6 +97,63 @@ Browser-based audio program generator - creates spoken audio from text with opti
 **Best for**: Quick previews, testing (not recommended for production)
 
 ## TTS Engine Setup Guides
+
+### OpenAI TTS Setup
+
+**Time Required**: ~2 minutes (one-time setup)
+
+#### Step 1: Create OpenAI Account
+
+1. Go to [OpenAI Platform](https://platform.openai.com/)
+2. Sign up or sign in with your account
+3. Note: This is separate from ChatGPT Plus subscription
+
+#### Step 2: Add Payment Method
+
+1. Click on "Settings" → "Billing"
+2. Click "Add payment method"
+3. Enter your credit card information
+4. **Note**: You only pay for what you use (no monthly fees)
+
+**Setting up usage limits** (recommended):
+1. Go to "Settings" → "Billing" → "Usage limits"
+2. Set a monthly budget (e.g., $10)
+3. You'll be notified when you approach the limit
+
+#### Step 3: Create API Key
+
+1. Go to [API Keys page](https://platform.openai.com/api-keys)
+2. Click "Create new secret key"
+3. Configure the key:
+   - **Name**: "Audio Program Generator" (or any name you prefer)
+   - **Owned by**: Select "You"
+   - **Permissions**: Select "All" (includes TTS access)
+     - *Alternative*: Choose "Restricted" and enable "Model capabilities" for TTS-only access
+4. Click "Create secret key"
+5. Copy the API key (it will look like: `sk-proj-...`)
+6. **Important**: Save it securely - you won't be able to see it again
+
+**Note**: The same API key works for all OpenAI services (ChatGPT API, DALL-E, TTS, Whisper, etc.). There's no separate "TTS-only" key type.
+
+#### Step 4: Use API Key in App
+
+1. Open the Audio Program Generator in your browser
+2. Select "OpenAI TTS" from the TTS Engine dropdown
+3. Paste your API key in the "OpenAI API Key" field
+4. Click "Save"
+5. The key is stored locally in your browser (not sent anywhere else)
+
+**Done!** You can now generate high-quality audio with OpenAI TTS.
+
+**Available Voices**:
+- **Nova** (Female - warm and friendly) - Recommended for meditation
+- **Shimmer** (Female - soft and gentle) - Great for relaxation
+- **Alloy** (Neutral - balanced)
+- **Echo** (Male)
+- **Fable** (Male - British)
+- **Onyx** (Male - deep)
+
+---
 
 ### Google Cloud Text-to-Speech Setup
 
@@ -254,6 +335,33 @@ npm run format
 # Check formatting
 npm run format:check
 ```
+
+## Supported Audio Formats
+
+### Background Music Files
+
+The app supports all common audio formats via the Web Audio API:
+
+**✅ Universal Support (All Browsers):**
+- **MP3** (.mp3) - Most common format
+- **WAV** (.wav) - Uncompressed, high quality
+
+**✅ Wide Support (Most Browsers):**
+- **OGG Vorbis** (.ogg) - All except Safari
+- **AAC/M4A** (.m4a, .aac) - Most browsers
+- **WebM** (.webm) - Chrome, Firefox, Edge
+
+**⚠️ Limited Support:**
+- **FLAC** (.flac) - Chrome, Edge only (lossless)
+- **AIFF** (.aiff, .aif) - Safari only
+
+**Recommendation**: Use **MP3** for maximum compatibility and small file sizes.
+
+### Output Format
+
+Generated audio is always exported as **WAV** (uncompressed) for maximum quality and compatibility with audio editing software.
+
+---
 
 ## Phrase File Format
 

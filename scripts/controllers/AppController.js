@@ -6,6 +6,7 @@
 import { FileService } from '../services/FileService.js';
 import { TTSService } from '../services/TTSService.js';
 import { AudioService } from '../services/AudioService.js';
+import { TTSCacheService } from '../services/TTSCacheService.js';
 import { parseTextFile } from '../utils/parser.js';
 
 export class AppController {
@@ -23,6 +24,7 @@ export class AppController {
     this.fileService = new FileService();
     this.ttsService = new TTSService();
     this.audioService = new AudioService();
+    this.cacheService = new TTSCacheService();
 
     // State
     this.currentAudioBlob = null;
@@ -31,7 +33,7 @@ export class AppController {
     this.isPlaying = false;
   }
 
-  initialize() {
+  async initialize() {
     this.form = document.getElementById('apg-form');
     this.generateBtn = document.getElementById('generate-btn');
     this.outputSection = document.getElementById('output-section');
@@ -42,6 +44,23 @@ export class AppController {
     this.stopBtn = document.getElementById('stop-btn');
 
     this.attachEventListeners();
+    
+    // Initialize cache in background (don't block app startup)
+    this.initializeCache();
+  }
+
+  async initializeCache() {
+    try {
+      await this.cacheService.init();
+      await this.cacheService.pruneCache();
+      
+      // Log cache stats
+      const stats = await this.cacheService.getStats();
+      // eslint-disable-next-line no-console
+      console.log(`📦 TTS Cache: ${stats.count} snippets, ${stats.totalSizeMB} MB`);
+    } catch (error) {
+      console.warn('Cache initialization failed (caching disabled):', error);
+    }
   }
 
   attachEventListeners() {
@@ -83,13 +102,18 @@ export class AppController {
       this.updateEngineUI(ttsEngineSelect.value);
     }
 
-    // Save API key button
+    // Save API key buttons
     const saveApiKeyBtn = document.getElementById('save-api-key-btn');
     if (saveApiKeyBtn) {
-      saveApiKeyBtn.addEventListener('click', () => this.handleSaveApiKey());
+      saveApiKeyBtn.addEventListener('click', () => this.handleSaveApiKey('google-cloud'));
     }
 
-    // Load saved API key
+    const saveOpenAIKeyBtn = document.getElementById('save-openai-key-btn');
+    if (saveOpenAIKeyBtn) {
+      saveOpenAIKeyBtn.addEventListener('click', () => this.handleSaveApiKey('openai'));
+    }
+
+    // Load saved API keys
     this.loadSavedApiKey();
 
     // Update slider value displays
@@ -104,6 +128,7 @@ export class AppController {
       { id: 'speaking-rate', valueId: 'speaking-rate-value' },
       { id: 'pitch', valueId: 'pitch-value' },
       { id: 'volume-gain', valueId: 'volume-gain-value' },
+      { id: 'openai-speed', valueId: 'openai-speed-value' },
     ];
 
     sliders.forEach(({ id, valueId }) => {
@@ -162,6 +187,10 @@ export class AppController {
     const warning = document.getElementById('browser-warning');
     const gttsSettings = document.getElementById('gtts-settings');
     const googleSettings = document.getElementById('google-cloud-settings');
+    const openaiSettings = document.getElementById('openai-settings');
+    const soundFileInput = document.getElementById('sound-file');
+    const clearSoundBtn = document.getElementById('clear-sound-btn');
+    const soundFileHelp = document.getElementById('sound-file-help');
 
     if (warning) {
       warning.style.display = engine === 'web-speech' ? 'block' : 'none';
@@ -175,16 +204,51 @@ export class AppController {
       googleSettings.style.display =
         engine === 'google-cloud' ? 'block' : 'none';
     }
+
+    if (openaiSettings) {
+      openaiSettings.style.display = engine === 'openai' ? 'block' : 'none';
+    }
+
+    // Disable background sound for Web Speech API (no mixing support)
+    const isWebSpeech = engine === 'web-speech';
+    
+    if (soundFileInput) {
+      soundFileInput.disabled = isWebSpeech;
+      if (isWebSpeech) {
+        soundFileInput.value = ''; // Clear any selected file
+      }
+    }
+
+    if (clearSoundBtn) {
+      clearSoundBtn.disabled = isWebSpeech;
+    }
+
+    if (soundFileHelp) {
+      soundFileHelp.textContent = isWebSpeech
+        ? 'Not available (Web Speech API does not support mixing)'
+        : 'Optional audio file (MP3, WAV, OGG, M4A, etc.)';
+    }
   }
 
-  async handleSaveApiKey() {
-    const apiKeyInput = document.getElementById('google-api-key');
+  async handleSaveApiKey(engine) {
+    let apiKeyInput;
+    
+    if (engine === 'google-cloud') {
+      apiKeyInput = document.getElementById('google-api-key');
+    } else if (engine === 'openai') {
+      apiKeyInput = document.getElementById('openai-api-key');
+    }
+    
     const apiKey = apiKeyInput.value.trim();
 
     if (!apiKey) {
       alert('Please enter an API key');
       return;
     }
+
+    // Temporarily set engine to validate
+    const currentEngine = this.ttsService.engine;
+    this.ttsService.setEngine(engine);
 
     // Validate API key
     this.updateProgress(0, 'Validating API key...');
@@ -193,26 +257,40 @@ export class AppController {
     if (!isValid) {
       alert('Invalid API key. Please check and try again.');
       this.updateProgress(0, '');
+      this.ttsService.setEngine(currentEngine);
       return;
     }
 
     // Save API key
-    this.ttsService.saveApiKey(apiKey);
+    this.ttsService.saveApiKey(apiKey, engine);
     alert('API key saved successfully!');
     this.updateProgress(0, '');
 
-    // Load voices dynamically
-    await this.loadVoices();
+    // Restore original engine
+    this.ttsService.setEngine(currentEngine);
+
+    // Load voices dynamically (for Google Cloud)
+    if (engine === 'google-cloud') {
+      await this.loadVoices();
+    }
   }
 
   loadSavedApiKey() {
     try {
-      const apiKey = localStorage.getItem('google-cloud-tts-api-key');
-      const apiKeyInput = document.getElementById('google-api-key');
-      if (apiKey && apiKeyInput) {
-        apiKeyInput.value = apiKey;
+      // Load Google Cloud API key
+      const googleApiKey = localStorage.getItem('google-cloud-tts-api-key');
+      const googleApiKeyInput = document.getElementById('google-api-key');
+      if (googleApiKey && googleApiKeyInput) {
+        googleApiKeyInput.value = googleApiKey;
         // Load voices if we have a key
         this.loadVoices();
+      }
+
+      // Load OpenAI API key
+      const openaiApiKey = localStorage.getItem('openai-tts-api-key');
+      const openaiApiKeyInput = document.getElementById('openai-api-key');
+      if (openaiApiKey && openaiApiKeyInput) {
+        openaiApiKeyInput.value = openaiApiKey;
       }
     } catch (e) {
       console.warn('Failed to load saved API key', e);
@@ -248,6 +326,39 @@ export class AppController {
     }
   }
 
+  /**
+   * Generate or retrieve cached speech for a phrase
+   * @param {Object} phrase - Phrase object with text
+   * @param {string} engine - TTS engine name
+   * @param {Object} ttsOptions - TTS options
+   * @returns {Promise<Blob>} Speech audio blob
+   */
+  async generateOrGetCachedSpeech(phrase, engine, ttsOptions) {
+    // Get the text from the phrase object
+    const text = phrase.phrase || phrase.text || '';
+    
+    try {
+      // Try to get from cache first
+      const cached = await this.cacheService.get(text, engine, ttsOptions);
+      if (cached) {
+        return cached;
+      }
+    } catch (error) {
+      console.warn('Cache lookup failed, generating fresh:', error);
+    }
+
+    // Not in cache, generate new speech
+    const speechBlob = await this.ttsService.generatePhrase(phrase, ttsOptions);
+    
+    // Store in cache for future use (don't fail if caching fails)
+    try {
+      await this.cacheService.set(text, engine, ttsOptions, speechBlob);
+    } catch (error) {
+      console.warn('Failed to cache speech:', error);
+    }
+    
+    return speechBlob;
+  }
 
   async handleSubmit(event) {
     event.preventDefault();
@@ -285,10 +396,10 @@ export class AppController {
       // Set TTS engine
       this.ttsService.setEngine(ttsEngine);
 
-      // Check if mixing/export is requested with Web Speech API
+      // Check if mixing/export is requested with Web Speech API (safety check)
       if (ttsEngine === 'web-speech' && soundFile && soundFile.size > 0) {
         this.showError(
-          'Background mixing is not supported with Web Speech API. Please use a premium TTS engine (ElevenLabs or Google Cloud) for mixing and export features.'
+          'Background mixing is not supported with Web Speech API. Please use a premium TTS engine (e.g. OpenAI or Google Cloud) for mixing and export features.'
         );
         return;
       }
@@ -327,9 +438,10 @@ export class AppController {
             `Generating phrase ${i + 1}/${phrases.length}...`
           );
 
-          // Generate speech
-          const speechBlob = await this.ttsService.generatePhrase(
+          // Generate speech (with caching)
+          const speechBlob = await this.generateOrGetCachedSpeech(
             phrase,
+            ttsEngine,
             ttsOptions
           );
 
@@ -416,9 +528,95 @@ export class AppController {
             `Generating phrase ${i + 1}/${phrases.length}...`
           );
 
-          // Generate speech
-          const speechBlob = await this.ttsService.generatePhrase(
+          // Generate speech (with caching)
+          const speechBlob = await this.generateOrGetCachedSpeech(
             phrase,
+            ttsEngine,
+            ttsOptions
+          );
+
+          // Convert to AudioBuffer
+          const arrayBuffer = await speechBlob.arrayBuffer();
+          const audioBuffer =
+            await this.audioService.decodeAudioData(arrayBuffer);
+          audioBuffers.push(audioBuffer);
+
+          // Add silence after phrase
+          if (phrase.duration > 0) {
+            const silence = this.audioService.createSilence(phrase.duration);
+            audioBuffers.push(silence);
+          }
+        }
+
+        // Concatenate all audio
+        this.updateProgress(85, 'Combining audio...');
+        let finalBuffer = this.audioService.concatenateBuffers(audioBuffers);
+
+        // Mix with background sound if provided
+        if (soundFile && soundFile.size > 0) {
+          this.updateProgress(90, 'Mixing with background sound...');
+          const soundArrayBuffer =
+            await this.fileService.readAudioFile(soundFile);
+          const backgroundBuffer =
+            await this.audioService.decodeAudioData(soundArrayBuffer);
+
+          const attenuation = parseInt(formData.get('attenuation')) || 0;
+          const fadeIn = parseInt(formData.get('fade-in')) || 3000;
+          const fadeOut = parseInt(formData.get('fade-out')) || 6000;
+
+          finalBuffer = this.audioService.mixBuffers(
+            finalBuffer,
+            backgroundBuffer,
+            { attenuation }
+          );
+
+          // Apply fades to mixed audio
+          finalBuffer = this.audioService.applyFades(finalBuffer, {
+            fadeIn,
+            fadeOut,
+          });
+        }
+
+        // Convert to WAV blob
+        this.updateProgress(95, 'Finalizing...');
+        this.currentAudioBlob = this.audioService.audioBufferToWav(finalBuffer);
+
+        // Show output
+        this.updateProgress(100, 'Complete!');
+        this.showOutput();
+        return;
+      }
+
+      // Handle OpenAI TTS (with mixing/export support)
+      if (ttsEngine === 'openai') {
+        // Get OpenAI TTS options
+        const voice = formData.get('openai-voice') || 'nova';
+        const model = formData.get('openai-model') || 'tts-1';
+        const speed = parseFloat(formData.get('openai-speed')) || 1.0;
+
+        const ttsOptions = {
+          voice,
+          model,
+          speed,
+          format: 'wav',
+        };
+
+        // Generate speech for each phrase
+        this.updateProgress(20, 'Generating speech...');
+        const audioBuffers = [];
+
+        for (let i = 0; i < phrases.length; i++) {
+          const phrase = phrases[i];
+          const progress = 20 + (60 * (i + 1)) / phrases.length;
+          this.updateProgress(
+            progress,
+            `Generating phrase ${i + 1}/${phrases.length}...`
+          );
+
+          // Generate speech (with caching)
+          const speechBlob = await this.generateOrGetCachedSpeech(
+            phrase,
+            ttsEngine,
             ttsOptions
           );
 
@@ -476,7 +674,7 @@ export class AppController {
 
       // Other premium TTS engines
       this.showError(
-        `${ttsEngine} is not yet implemented. Please use Google Cloud TTS or Web Speech API.`
+        `${ttsEngine} is not yet implemented. Please use OpenAI TTS, Google Cloud TTS, or Web Speech API.`
       );
     } catch (error) {
       this.showError(error.message);

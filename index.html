@@ -73,14 +73,14 @@
               <label for="sound-file" style="margin-bottom: 0;">
                 Background Sound
               </label>
-              <small>Optional .wav file to mix with speech</small>
+              <small id="sound-file-help">Optional audio file (MP3, WAV, OGG, M4A, etc.)</small>
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: stretch">
               <input
                 type="file"
                 id="sound-file"
                 name="sound-file"
-                accept=".wav"
+                accept=".wav,.mp3,.ogg,.m4a,.aac,.flac,.aiff,.aif,.webm,audio/*"
                 style="flex: 1"
               />
               <button
@@ -102,6 +102,9 @@
               <small>Which voice generation service to use</small>
             </div>
             <select id="tts-engine" name="tts-engine">
+                <option value="openai">
+                  OpenAI TTS (pay-as-you-go - $15/1M chars)
+                </option>
                 <option value="google-cloud">
                   Google Cloud TTS (free tier - recommended)
                 </option>
@@ -233,6 +236,72 @@
               </details>
             </div>
 
+            <!-- OpenAI TTS Settings -->
+            <div id="openai-settings" style="display: none">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+                <label for="openai-api-key" style="margin-bottom: 0;">
+                  OpenAI API Key
+                </label>
+                <small>
+                  <a
+                    href="https://platform.openai.com/api-keys"
+                    target="_blank"
+                    >Get API Key</a
+                  >
+                </small>
+              </div>
+              <div style="display: flex; gap: 0.5rem">
+                <input
+                  type="password"
+                  id="openai-api-key"
+                  name="openai-api-key"
+                  placeholder="Enter your OpenAI API key (stored locally in browser)"
+                  style="flex: 1"
+                />
+                <button
+                  type="button"
+                  id="save-openai-key-btn"
+                  class="secondary"
+                  style="flex: 0 0 auto"
+                >
+                  Save
+                </button>
+              </div>
+
+              <label for="openai-voice">
+                Voice
+                <select id="openai-voice" name="openai-voice">
+                  <option value="nova">Nova (Female - warm and friendly)</option>
+                  <option value="shimmer">Shimmer (Female - soft and gentle)</option>
+                  <option value="alloy">Alloy (Neutral - balanced)</option>
+                  <option value="echo">Echo (Male)</option>
+                  <option value="fable">Fable (Male - British)</option>
+                  <option value="onyx">Onyx (Male - deep)</option>
+                </select>
+              </label>
+
+              <label for="openai-model">
+                Model Quality
+                <select id="openai-model" name="openai-model">
+                  <option value="tts-1">Standard ($15/1M chars)</option>
+                  <option value="tts-1-hd">HD Quality ($30/1M chars)</option>
+                </select>
+              </label>
+
+              <label for="openai-speed">
+                Speed: <span id="openai-speed-value">1.0</span>
+                <input
+                  type="range"
+                  id="openai-speed"
+                  name="openai-speed"
+                  min="0.25"
+                  max="4.0"
+                  step="0.25"
+                  value="1.0"
+                />
+              </label>
+            </div>
+
             <hr style="margin: 2rem 0; border: none; border-top: 1px solid var(--muted-border-color);" />
 
             <!-- Options -->
@@ -245,15 +314,19 @@
               </label>
 
               <label for="attenuation">
-                Background attenuation (dB)
+                Background volume adjustment (dB)
                 <input
                   type="number"
                   id="attenuation"
                   name="attenuation"
-                  value="0"
-                  min="-20"
-                  max="20"
+                  value="-6"
+                  min="-40"
+                  max="6"
+                  step="1"
                 />
+                <small style="color: var(--muted-color);">
+                  Negative = quieter, Positive = louder. Try -12 (quarter volume), -6 (half), 0 (same as speech), +3 (1.4x louder)
+                </small>
               </label>
 
               <label for="fade-in">
