@@ -117,17 +117,13 @@
               </select>
 
             <!-- Browser Warning (Web Speech API) -->
-            <div id="browser-warning" style="display: none; margin-top: 0.5rem;">
-              <small style="color: var(--del-color)">
-                <em>
-                    Web Speech API plays directly through your speakers and doesn't support audio export or background mixing.
-                </em><br />
-                <em>
-                    Web Speech API audio quality varies significantly by browser. Chrome and Edge provide the best results. Firefox and Safari may produce poor quality audio.
-                </em><br />
-                <em>
-                    For consistent, high-quality audio across all browsers with export and mixing support, select the Google Cloud TTS option in the dropdown.
-                </em><br />
+            <div id="browser-warning" style="display: none; margin-top: 1rem; margin-bottom: 1.5rem; padding: 0.75rem; background: var(--card-background-color); border-left: 3px solid var(--del-color); border-radius: 0.25rem;">
+              <small style="color: var(--muted-color); line-height: 1.6;">
+                ⚠️ <strong style="color: var(--del-color);">Browser Compatibility:</strong> Web Speech API audio quality varies significantly by browser. <strong>Chrome</strong> and <strong>Edge</strong> provide the best results. Firefox and Safari may produce poor quality audio.
+                <br /><br />
+                <strong>Note:</strong> Web Speech API plays directly through your speakers and doesn't support audio export or background mixing.
+                <br /><br />
+                For consistent, high-quality audio across all browsers with export and mixing support, use Google Cloud TTS.
               </small>
             </div>
 
@@ -236,6 +232,8 @@
                 </label>
               </details>
             </div>
+
+            <hr style="margin: 2rem 0; border: none; border-top: 1px solid var(--muted-border-color);" />
 
             <!-- Options -->
             <details>
