@@ -110,9 +110,13 @@
             </div>
 
             <!-- TTS Engine -->
-            <label for="tts-engine">
-              Text-to-Speech Engine
-              <select id="tts-engine" name="tts-engine">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+              <label for="tts-engine" style="margin-bottom: 0;">
+                Text-to-Speech Engine
+              </label>
+              <small>Which voice generation service to use</small>
+            </div>
+            <select id="tts-engine" name="tts-engine">
                 <option value="google-cloud">
                   Google Cloud TTS (free tier - recommended)
                 </option>
@@ -126,7 +130,6 @@
                   ElevenLabs (premium feature - coming soon)
                 </option>
               </select>
-            </label>
 
             <!-- gTTS Settings -->
             <div id="gtts-settings" style="display: none">
