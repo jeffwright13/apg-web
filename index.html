@@ -99,13 +99,125 @@
                   Google Cloud TTS (Free tier - Recommended)
                 </option>
                 <option value="web-speech">
-                  Web Speech API (Free - Playback only, browser-dependent quality)
+                  Web Speech API (Free - Playback only, browser-dependent)
+                </option>
+                <option value="gtts" disabled>
+                  Google Translate TTS (Coming soon - requires backend)
                 </option>
                 <option value="elevenlabs" disabled>
                   ElevenLabs (Premium - Coming soon)
                 </option>
               </select>
             </label>
+            <small style="color: var(--muted-color)">
+              💡 Google Cloud TTS requires a free API key (one-time setup, 5
+              minutes). Free tier: 1M characters/month.
+            </small>
+
+            <!-- gTTS Settings -->
+            <div id="gtts-settings" style="display: none">
+              <label for="gtts-accent">
+                Accent/Region
+                <select id="gtts-accent" name="gtts-accent">
+                  <option value="com">United States</option>
+                  <option value="co.uk">United Kingdom</option>
+                  <option value="com.au">Australia</option>
+                  <option value="ca">Canada</option>
+                  <option value="co.in">India</option>
+                  <option value="ie">Ireland</option>
+                  <option value="co.za">South Africa</option>
+                </select>
+              </label>
+            </div>
+
+            <!-- Google Cloud TTS Settings -->
+            <div id="google-cloud-settings" style="display: none">
+              <label for="google-api-key">
+                Google Cloud API Key
+                <small
+                  ><a
+                    href="https://console.cloud.google.com/apis/credentials"
+                    target="_blank"
+                    >Get API Key</a
+                  >
+                  | Stored locally in browser</small
+                >
+              </label>
+              <div style="display: flex; gap: 0.5rem">
+                <input
+                  type="password"
+                  id="google-api-key"
+                  name="google-api-key"
+                  placeholder="Enter your Google Cloud API key"
+                  style="flex: 1"
+                />
+                <button
+                  type="button"
+                  id="save-api-key-btn"
+                  class="secondary"
+                  style="flex: 0 0 auto"
+                >
+                  Save
+                </button>
+              </div>
+
+              <label for="google-voice">
+                Voice
+                <select id="google-voice" name="google-voice">
+                  <option value="en-US-Neural2-C">
+                    en-US-Neural2-C (Female)
+                  </option>
+                  <option value="en-US-Neural2-A">en-US-Neural2-A (Male)</option>
+                  <option value="en-US-Neural2-D">en-US-Neural2-D (Male)</option>
+                  <option value="en-US-Neural2-E">
+                    en-US-Neural2-E (Female)
+                  </option>
+                </select>
+              </label>
+
+              <details>
+                <summary>Advanced Voice Settings</summary>
+
+                <label for="speaking-rate">
+                  Speaking Rate: <span id="speaking-rate-value">1.0</span>
+                  <input
+                    type="range"
+                    id="speaking-rate"
+                    name="speaking-rate"
+                    min="0.25"
+                    max="4.0"
+                    step="0.25"
+                    value="1.0"
+                  />
+                </label>
+
+                <label for="pitch">
+                  Pitch: <span id="pitch-value">0.0</span>
+                  <input
+                    type="range"
+                    id="pitch"
+                    name="pitch"
+                    min="-20"
+                    max="20"
+                    step="1"
+                    value="0"
+                  />
+                </label>
+
+                <label for="volume-gain">
+                  Volume Gain (dB): <span id="volume-gain-value">0.0</span>
+                  <input
+                    type="range"
+                    id="volume-gain"
+                    name="volume-gain"
+                    min="-96"
+                    max="16"
+                    step="1"
+                    value="0"
+                  />
+                </label>
+              </details>
+            </div>
 
             <!-- Options -->
             <details>

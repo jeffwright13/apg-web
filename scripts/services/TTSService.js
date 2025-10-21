@@ -1,14 +1,62 @@
 /**
  * Text-to-Speech service
- * Supports multiple TTS engines with fallback
+ * Supports multiple TTS engines with adapter pattern
  */
+
+import { GoogleCloudTTSAdapter } from './GoogleCloudTTSAdapter.js';
+import { GTTSAdapter } from './GTTSAdapter.js';
 
 export class TTSService {
   constructor() {
-    this.engine = 'web-speech';
-    this.apiKey = null;
+    this.engine = 'google-cloud';
     this.cancelRequested = false;
     this.isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+    
+    // Initialize adapters
+    this.adapters = {
+      'gtts': new GTTSAdapter(),
+      'google-cloud': new GoogleCloudTTSAdapter(),
+    };
+    
+    // Load API key from localStorage
+    this.loadApiKey();
+  }
+
+  /**
+   * Load API key from localStorage
+   */
+  loadApiKey() {
+    try {
+      const apiKey = localStorage.getItem('google-cloud-tts-api-key');
+      if (apiKey && this.adapters['google-cloud']) {
+        this.adapters['google-cloud'].setApiKey(apiKey);
+      }
+    } catch (e) {
+      console.warn('Failed to load API key from localStorage', e);
+    }
+  }
+
+  /**
+   * Save API key to localStorage
+   * @param {string} apiKey - API key
+   */
+  saveApiKey(apiKey) {
+    try {
+      localStorage.setItem('google-cloud-tts-api-key', apiKey);
+      if (this.adapters['google-cloud']) {
+        this.adapters['google-cloud'].setApiKey(apiKey);
+      }
+    } catch (e) {
+      console.warn('Failed to save API key to localStorage', e);
+    }
+  }
+
+  /**
+   * Get current adapter
+   * @returns {TTSEngineAdapter} Current adapter
+   */
+  getCurrentAdapter() {
+    return this.adapters[this.engine];
   }
 
   /**
@@ -20,11 +68,49 @@ export class TTSService {
   }
 
   /**
-   * Set API key for premium engines
-   * @param {string} key - API key
+   * Generate speech for a phrase using current engine
+   * @param {Object} phrase - Phrase object {phrase, duration}
+   * @param {Object} options - Generation options
+   * @returns {Promise<Blob>} Audio blob
    */
-  setApiKey(key) {
-    this.apiKey = key;
+  async generatePhrase(phrase, options = {}) {
+    if (this.engine === 'web-speech') {
+      // Web Speech API handled separately (playback only)
+      return this.generateSpeechWebAPI(phrase.phrase, options);
+    }
+
+    // Use adapter for other engines
+    const adapter = this.getCurrentAdapter();
+    if (!adapter) {
+      throw new Error(`No adapter found for engine: ${this.engine}`);
+    }
+
+    return adapter.generateSpeech(phrase.phrase, options);
+  }
+
+  /**
+   * Get capabilities for current engine
+   * @returns {Promise<Object>} Engine capabilities
+   */
+  async getCapabilities() {
+    const adapter = this.getCurrentAdapter();
+    if (!adapter) {
+      return null;
+    }
+    return adapter.getCapabilities();
+  }
+
+  /**
+   * Validate API key for current engine
+   * @param {string} apiKey - API key to validate
+   * @returns {Promise<boolean>} True if valid
+   */
+  async validateApiKey(apiKey) {
+    const adapter = this.getCurrentAdapter();
+    if (!adapter || !adapter.requiresApiKey()) {
+      return true;
+    }
+    return adapter.validateApiKey(apiKey);
   }
 
   /**
@@ -346,24 +432,4 @@ export class TTSService {
     }
   }
 
-  /**
-   * Generate speech for a phrase
-   * @param {Object} phrase - Phrase object {phrase, duration}
-   * @param {Object} options - Generation options
-   * @returns {Promise<Blob>} Audio blob
-   */
-  async generatePhrase(phrase, options = {}) {
-    switch (this.engine) {
-      case 'web-speech':
-        return this.generateSpeechWebAPI(phrase.phrase, options);
-      case 'elevenlabs':
-        // TODO: Implement ElevenLabs API
-        throw new Error('ElevenLabs not yet implemented');
-      case 'google-cloud':
-        // TODO: Implement Google Cloud TTS
-        throw new Error('Google Cloud TTS not yet implemented');
-      default:
-        throw new Error(`Unknown TTS engine: ${this.engine}`);
-    }
-  }
 }

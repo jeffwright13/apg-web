@@ -73,21 +73,134 @@ export class AppController {
       });
     }
 
-    // Show/hide browser warning based on TTS engine selection
+    // Show/hide browser warning and settings based on TTS engine selection
     const ttsEngineSelect = document.getElementById('tts-engine');
     if (ttsEngineSelect) {
       ttsEngineSelect.addEventListener('change', (e) => {
-        this.updateBrowserWarning(e.target.value);
+        this.updateEngineUI(e.target.value);
       });
       // Set initial state
-      this.updateBrowserWarning(ttsEngineSelect.value);
+      this.updateEngineUI(ttsEngineSelect.value);
+    }
+
+    // Save API key button
+    const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+    if (saveApiKeyBtn) {
+      saveApiKeyBtn.addEventListener('click', () => this.handleSaveApiKey());
+    }
+
+    // Load saved API key
+    this.loadSavedApiKey();
+
+    // Update slider value displays
+    this.setupSliderValueDisplays();
+  }
+
+  setupSliderValueDisplays() {
+    const sliders = [
+      { id: 'speaking-rate', valueId: 'speaking-rate-value' },
+      { id: 'pitch', valueId: 'pitch-value' },
+      { id: 'volume-gain', valueId: 'volume-gain-value' },
+    ];
+
+    sliders.forEach(({ id, valueId }) => {
+      const slider = document.getElementById(id);
+      const valueDisplay = document.getElementById(valueId);
+      if (slider && valueDisplay) {
+        slider.addEventListener('input', (e) => {
+          valueDisplay.textContent = e.target.value;
+        });
+      }
+    });
+  }
+
+  updateEngineUI(engine) {
+    const warning = document.getElementById('browser-warning');
+    const gttsSettings = document.getElementById('gtts-settings');
+    const googleSettings = document.getElementById('google-cloud-settings');
+
+    if (warning) {
+      warning.style.display = engine === 'web-speech' ? 'block' : 'none';
+    }
+
+    if (gttsSettings) {
+      gttsSettings.style.display = engine === 'gtts' ? 'block' : 'none';
+    }
+
+    if (googleSettings) {
+      googleSettings.style.display =
+        engine === 'google-cloud' ? 'block' : 'none';
     }
   }
 
-  updateBrowserWarning(engine) {
-    const warning = document.getElementById('browser-warning');
-    if (warning) {
-      warning.style.display = engine === 'web-speech' ? 'block' : 'none';
+  async handleSaveApiKey() {
+    const apiKeyInput = document.getElementById('google-api-key');
+    const apiKey = apiKeyInput.value.trim();
+
+    if (!apiKey) {
+      alert('Please enter an API key');
+      return;
+    }
+
+    // Validate API key
+    this.updateProgress(0, 'Validating API key...');
+    const isValid = await this.ttsService.validateApiKey(apiKey);
+
+    if (!isValid) {
+      alert('Invalid API key. Please check and try again.');
+      this.updateProgress(0, '');
+      return;
+    }
+
+    // Save API key
+    this.ttsService.saveApiKey(apiKey);
+    alert('API key saved successfully!');
+    this.updateProgress(0, '');
+
+    // Load voices dynamically
+    await this.loadVoices();
+  }
+
+  loadSavedApiKey() {
+    try {
+      const apiKey = localStorage.getItem('google-cloud-tts-api-key');
+      const apiKeyInput = document.getElementById('google-api-key');
+      if (apiKey && apiKeyInput) {
+        apiKeyInput.value = apiKey;
+        // Load voices if we have a key
+        this.loadVoices();
+      }
+    } catch (e) {
+      console.warn('Failed to load saved API key', e);
+    }
+  }
+
+  async loadVoices() {
+    try {
+      const capabilities = await this.ttsService.getCapabilities();
+      if (!capabilities || !capabilities.voices) {
+        return;
+      }
+
+      const voiceSelect = document.getElementById('google-voice');
+      if (!voiceSelect) return;
+
+      // Clear existing options
+      voiceSelect.innerHTML = '';
+
+      // Add voices (filter for English)
+      const englishVoices = capabilities.voices.filter((v) =>
+        v.languageCodes.some((lang) => lang.startsWith('en-'))
+      );
+
+      englishVoices.forEach((voice) => {
+        const option = document.createElement('option');
+        option.value = voice.name;
+        option.textContent = `${voice.name} (${voice.ssmlGender})`;
+        voiceSelect.appendChild(option);
+      });
+    } catch (error) {
+      console.error('Failed to load voices:', error);
     }
   }
 
@@ -148,10 +261,178 @@ export class AppController {
         return;
       }
 
-      // Premium TTS engines (with mixing/export support)
-      // TODO: Implement ElevenLabs and Google Cloud TTS
+      // Handle gTTS (Google Translate TTS)
+      if (ttsEngine === 'gtts') {
+        const tld = formData.get('gtts-accent') || 'com';
+
+        const ttsOptions = {
+          tld,
+          lang: 'en',
+          slow: slowSpeech,
+        };
+
+        // Generate speech for each phrase
+        this.updateProgress(20, 'Generating speech...');
+        const audioBuffers = [];
+
+        for (let i = 0; i < phrases.length; i++) {
+          const phrase = phrases[i];
+          const progress = 20 + (60 * (i + 1)) / phrases.length;
+          this.updateProgress(
+            progress,
+            `Generating phrase ${i + 1}/${phrases.length}...`
+          );
+
+          // Generate speech
+          const speechBlob = await this.ttsService.generatePhrase(
+            phrase,
+            ttsOptions
+          );
+
+          // Convert to AudioBuffer
+          const arrayBuffer = await speechBlob.arrayBuffer();
+          const audioBuffer =
+            await this.audioService.decodeAudioData(arrayBuffer);
+          audioBuffers.push(audioBuffer);
+
+          // Add silence after phrase
+          if (phrase.duration > 0) {
+            const silence = this.audioService.createSilence(phrase.duration);
+            audioBuffers.push(silence);
+          }
+        }
+
+        // Concatenate all audio
+        this.updateProgress(85, 'Combining audio...');
+        let finalBuffer = this.audioService.concatenateBuffers(audioBuffers);
+
+        // Mix with background sound if provided
+        if (soundFile && soundFile.size > 0) {
+          this.updateProgress(90, 'Mixing with background sound...');
+          const soundArrayBuffer =
+            await this.fileService.readAudioFile(soundFile);
+          const backgroundBuffer =
+            await this.audioService.decodeAudioData(soundArrayBuffer);
+
+          const attenuation = parseInt(formData.get('attenuation')) || 0;
+          const fadeIn = parseInt(formData.get('fade-in')) || 3000;
+          const fadeOut = parseInt(formData.get('fade-out')) || 6000;
+
+          finalBuffer = this.audioService.mixBuffers(
+            finalBuffer,
+            backgroundBuffer,
+            { attenuation }
+          );
+
+          // Apply fades to mixed audio
+          finalBuffer = this.audioService.applyFades(finalBuffer, {
+            fadeIn,
+            fadeOut,
+          });
+        }
+
+        // Convert to WAV blob
+        this.updateProgress(95, 'Finalizing...');
+        this.currentAudioBlob = this.audioService.audioBufferToWav(finalBuffer);
+
+        // Show output
+        this.updateProgress(100, 'Complete!');
+        this.showOutput();
+        return;
+      }
+
+      // Handle Google Cloud TTS (with mixing/export support)
+      if (ttsEngine === 'google-cloud') {
+        // Get Google Cloud TTS options
+        const voiceName = formData.get('google-voice') || 'en-US-Neural2-C';
+        const speakingRate =
+          parseFloat(formData.get('speaking-rate')) || 1.0;
+        const pitch = parseFloat(formData.get('pitch')) || 0.0;
+        const volumeGainDb = parseFloat(formData.get('volume-gain')) || 0.0;
+
+        const ttsOptions = {
+          voiceName,
+          languageCode: 'en-US',
+          speakingRate,
+          pitch,
+          volumeGainDb,
+          audioEncoding: 'LINEAR16',
+          sampleRateHertz: 24000,
+        };
+
+        // Generate speech for each phrase
+        this.updateProgress(20, 'Generating speech...');
+        const audioBuffers = [];
+
+        for (let i = 0; i < phrases.length; i++) {
+          const phrase = phrases[i];
+          const progress = 20 + (60 * (i + 1)) / phrases.length;
+          this.updateProgress(
+            progress,
+            `Generating phrase ${i + 1}/${phrases.length}...`
+          );
+
+          // Generate speech
+          const speechBlob = await this.ttsService.generatePhrase(
+            phrase,
+            ttsOptions
+          );
+
+          // Convert to AudioBuffer
+          const arrayBuffer = await speechBlob.arrayBuffer();
+          const audioBuffer =
+            await this.audioService.decodeAudioData(arrayBuffer);
+          audioBuffers.push(audioBuffer);
+
+          // Add silence after phrase
+          if (phrase.duration > 0) {
+            const silence = this.audioService.createSilence(phrase.duration);
+            audioBuffers.push(silence);
+          }
+        }
+
+        // Concatenate all audio
+        this.updateProgress(85, 'Combining audio...');
+        let finalBuffer = this.audioService.concatenateBuffers(audioBuffers);
+
+        // Mix with background sound if provided
+        if (soundFile && soundFile.size > 0) {
+          this.updateProgress(90, 'Mixing with background sound...');
+          const soundArrayBuffer =
+            await this.fileService.readAudioFile(soundFile);
+          const backgroundBuffer =
+            await this.audioService.decodeAudioData(soundArrayBuffer);
+
+          const attenuation = parseInt(formData.get('attenuation')) || 0;
+          const fadeIn = parseInt(formData.get('fade-in')) || 3000;
+          const fadeOut = parseInt(formData.get('fade-out')) || 6000;
+
+          finalBuffer = this.audioService.mixBuffers(
+            finalBuffer,
+            backgroundBuffer,
+            { attenuation }
+          );
+
+          // Apply fades to mixed audio
+          finalBuffer = this.audioService.applyFades(finalBuffer, {
+            fadeIn,
+            fadeOut,
+          });
+        }
+
+        // Convert to WAV blob
+        this.updateProgress(95, 'Finalizing...');
+        this.currentAudioBlob = this.audioService.audioBufferToWav(finalBuffer);
+
+        // Show output
+        this.updateProgress(100, 'Complete!');
+        this.showOutput();
+        return;
+      }
+
+      // Other premium TTS engines
       this.showError(
-        `${ttsEngine} is not yet implemented. Please use Web Speech API for now, or wait for premium TTS integration.`
+        `${ttsEngine} is not yet implemented. Please use Google Cloud TTS or Web Speech API.`
       );
     } catch (error) {
       this.showError(error.message);
