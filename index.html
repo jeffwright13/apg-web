@@ -16,20 +16,24 @@
   </head>
   <body>
     <main class="container">
-      <header style="position: relative">
-        <h1>Audio Program Generator</h1>
-        <p>
-          Create spoken audio programs from text with optional background music
-        </p>
-        
-        <!-- Theme Switcher -->
-        <div id="theme-switcher" style="position: absolute; top: 1rem; right: 0; display: flex; gap: 0.5rem; align-items: center;">
-          <small style="opacity: 0.7">Theme:</small>
-          <select id="theme-select" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.875rem;" aria-label="Theme selector">
-            <option value="auto">Auto</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
+      <header>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+          <div style="flex: 1;">
+            <h1 style="margin-bottom: 0.5rem;">Audio Program Generator</h1>
+            <p style="margin-bottom: 0;">
+              Create spoken audio programs from text with optional background music
+            </p>
+          </div>
+          
+          <!-- Theme Switcher -->
+          <div id="theme-switcher" style="display: flex; gap: 0.5rem; align-items: center; padding-top: 0.25rem;">
+            <small style="opacity: 0.7; white-space: nowrap;">Theme:</small>
+            <select id="theme-select" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.875rem; margin: 0;" aria-label="Theme selector">
+              <option value="auto">Auto</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
         </div>
         
         <div id="browser-warning" style="display: none">
