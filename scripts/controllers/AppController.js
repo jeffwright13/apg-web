@@ -28,6 +28,7 @@ export class AppController {
 
     // State
     this.currentAudioBlob = null;
+    this.currentAudioBuffer = null;
     this.currentPhrases = null;
     this.currentOptions = null;
     this.isPlaying = false;
@@ -121,6 +122,9 @@ export class AppController {
 
     // Setup theme switcher
     this.setupThemeSwitcher();
+
+    // Setup export format selector
+    this.setupExportFormatSelector();
   }
 
   setupSliderValueDisplays() {
@@ -184,6 +188,25 @@ export class AppController {
     } else if (theme === 'dark') {
       html.setAttribute('data-theme', 'dark');
     }
+  }
+
+  setupExportFormatSelector() {
+    const formatSelect = document.getElementById('export-format');
+    const bitrateContainer = document.getElementById('mp3-bitrate-container');
+    
+    if (!formatSelect || !bitrateContainer) return;
+
+    // Show/hide bitrate selector based on format
+    const updateBitrateVisibility = () => {
+      const format = formatSelect.value;
+      bitrateContainer.style.display = format === 'mp3' ? 'block' : 'none';
+    };
+
+    // Set initial state
+    updateBitrateVisibility();
+
+    // Listen for format changes
+    formatSelect.addEventListener('change', updateBitrateVisibility);
   }
 
   updateEngineUI(engine) {
@@ -580,8 +603,9 @@ export class AppController {
           });
         }
 
-        // Convert to WAV blob
+        // Store audio buffer and convert to WAV blob
         this.updateProgress(95, 'Finalizing...');
+        this.currentAudioBuffer = finalBuffer;
         this.currentAudioBlob = this.audioService.audioBufferToWav(finalBuffer);
 
         // Show output
@@ -670,8 +694,9 @@ export class AppController {
           });
         }
 
-        // Convert to WAV blob
+        // Store audio buffer and convert to WAV blob
         this.updateProgress(95, 'Finalizing...');
+        this.currentAudioBuffer = finalBuffer;
         this.currentAudioBlob = this.audioService.audioBufferToWav(finalBuffer);
 
         // Show output
@@ -755,8 +780,9 @@ export class AppController {
           });
         }
 
-        // Convert to WAV blob
+        // Store audio buffer and convert to WAV blob
         this.updateProgress(95, 'Finalizing...');
+        this.currentAudioBuffer = finalBuffer;
         this.currentAudioBlob = this.audioService.audioBufferToWav(finalBuffer);
 
         // Show output
@@ -839,17 +865,81 @@ export class AppController {
     this.updateProgress(0, 'Playback stopped');
   }
 
-  handleDownload() {
-    if (!this.currentAudioBlob) return;
+  async handleDownload() {
+    if (!this.currentAudioBuffer) {
+      this.showError('No audio available to download');
+      return;
+    }
 
-    const url = URL.createObjectURL(this.currentAudioBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'audio-program.wav';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const format = document.getElementById('export-format').value;
+    const bitrate = parseInt(document.getElementById('mp3-bitrate').value);
+
+    try {
+      let blob;
+      let filename;
+
+      if (format === 'mp3') {
+        // Check if lamejs is available
+        if (!this.audioService.isLameAvailable()) {
+          this.showError(
+            'MP3 encoder not available. This may be due to:\n\n' +
+            '1. No internet connection (library not cached yet)\n' +
+            '2. Browser blocking the script\n' +
+            '3. Network error\n\n' +
+            'Please check your connection and reload the page, or use WAV format instead.'
+          );
+          return;
+        }
+
+        // Show progress container for MP3 encoding
+        this.progressContainer.style.display = 'block';
+        this.updateProgress(0, 'Encoding MP3...');
+        this.downloadBtn.disabled = true;
+
+        blob = await this.audioService.audioBufferToMP3(
+          this.currentAudioBuffer,
+          bitrate,
+          (progress) => {
+            this.updateProgress(progress, `Encoding MP3... ${progress}%`);
+          }
+        );
+
+        filename = `audio-program-${bitrate}kbps.mp3`;
+        this.updateProgress(100, 'MP3 encoding complete!');
+      } else {
+        // Export as WAV (instant, no progress needed)
+        blob = this.audioService.audioBufferToWav(this.currentAudioBuffer);
+        filename = 'audio-program.wav';
+      }
+
+      // Download the file
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      // Hide progress and reset after a delay
+      setTimeout(() => {
+        this.progressContainer.style.display = 'none';
+      }, 1000);
+
+    } catch (error) {
+      if (error.message.includes('cancelled')) {
+        this.updateProgress(0, 'Encoding cancelled');
+      } else {
+        this.showError(error.message);
+      }
+      // Hide progress on error
+      setTimeout(() => {
+        this.progressContainer.style.display = 'none';
+      }, 2000);
+    } finally {
+      this.downloadBtn.disabled = false;
+    }
   }
 
   showError(message) {

@@ -7,9 +7,10 @@ Browser-based audio program generator - creates spoken audio from text with opti
 - **Text-to-Speech**: Convert text files to spoken audio
 - **Multiple TTS Engines**: OpenAI TTS, Google Cloud TTS, Web Speech API
 - **Background Music**: Mix speech with background audio (supports MP3, WAV, OGG, M4A, AAC, FLAC, AIFF)
-- **Audio Export**: Download generated audio as WAV files
+- **Audio Export**: Download as WAV (uncompressed) or MP3 (7-10x smaller)
 - **Browser-Based**: No installation required, runs entirely in your browser
 - **Modern UI**: Clean, responsive interface with Pico.css
+- **Internet Required**: First load requires internet to download styling and MP3 encoder library
 
 ## Quick Start
 

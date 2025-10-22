@@ -11,6 +11,7 @@ export default [
         ...globals.browser,
         ...globals.node,
         ...globals.jest,
+        lamejs: 'readonly', // MP3 encoder library loaded from CDN
       },
     },
     rules: {

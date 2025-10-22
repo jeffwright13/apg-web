@@ -13,8 +13,37 @@
       href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
     />
     <link rel="stylesheet" href="styles/custom.css" />
+    
+    <!-- MP3 Encoder Library (lamejs) -->
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+    
+    <!-- Offline Notice Styling (inline to work without CDN) -->
+    <style>
+      .offline-notice {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: #ff6b6b;
+        color: white;
+        padding: 1rem;
+        text-align: center;
+        z-index: 9999;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      }
+      .offline-notice.show {
+        display: block;
+      }
+    </style>
   </head>
   <body>
+    <!-- Offline Notice Banner -->
+    <div id="offline-notice" class="offline-notice">
+      ⚠️ <strong>No Internet Connection:</strong> Some features may not work properly. Please connect to the internet and reload the page.
+    </div>
+    
     <main class="container">
       <header>
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
@@ -465,6 +494,31 @@
           <!-- Download Controls (Premium TTS) -->
           <div id="download-controls" style="display: none">
             <audio id="audio-player" controls style="margin-top: 1rem"></audio>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+              <div>
+                <label for="export-format">
+                  Export Format
+                  <select id="export-format" name="export-format">
+                    <option value="wav">WAV (uncompressed, large file)</option>
+                    <option value="mp3" selected>MP3 (compressed, smaller file)</option>
+                  </select>
+                </label>
+              </div>
+              
+              <div id="mp3-bitrate-container">
+                <label for="mp3-bitrate">
+                  MP3 Quality
+                  <select id="mp3-bitrate" name="mp3-bitrate">
+                    <option value="128">128 kbps (Good, ~1 MB/min)</option>
+                    <option value="192" selected>192 kbps (Very Good, ~1.4 MB/min)</option>
+                    <option value="256">256 kbps (Excellent, ~1.9 MB/min)</option>
+                    <option value="320">320 kbps (Best, ~2.4 MB/min)</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            
             <button id="download-btn">Download Audio</button>
           </div>
         </article>
@@ -477,6 +531,47 @@
         >
       </footer>
     </main>
+
+    <!-- Offline Detection Script (runs before main.js) -->
+    <script>
+      // Check if CSS loaded properly (Pico CSS sets a specific style)
+      window.addEventListener('DOMContentLoaded', () => {
+        const offlineNotice = document.getElementById('offline-notice');
+        
+        function checkResources() {
+          // Simple check: if body doesn't have Pico's styling, CSS didn't load
+          const bodyStyles = window.getComputedStyle(document.body);
+          const hasProperStyling = bodyStyles.fontFamily.includes('system-ui') || 
+                                   bodyStyles.fontFamily.includes('Segoe UI');
+          
+          // Also check if lamejs loaded
+          const hasLamejs = typeof lamejs !== 'undefined';
+          
+          if (!hasProperStyling || !hasLamejs) {
+            offlineNotice.classList.add('show');
+          } else {
+            offlineNotice.classList.remove('show');
+          }
+        }
+        
+        // Check on load
+        checkResources();
+        
+        // Listen for network status changes
+        window.addEventListener('online', () => {
+          // Network restored - suggest reload
+          offlineNotice.innerHTML = '✅ <strong>Internet Restored:</strong> Please reload the page to restore full functionality. <button onclick="location.reload()" style="margin-left: 1rem; padding: 0.25rem 0.75rem; background: white; color: #ff6b6b; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Reload Now</button>';
+          offlineNotice.style.background = '#51cf66';
+        });
+        
+        window.addEventListener('offline', () => {
+          // Network lost
+          offlineNotice.innerHTML = '⚠️ <strong>No Internet Connection:</strong> Some features may not work properly. Please connect to the internet and reload the page.';
+          offlineNotice.style.background = '#ff6b6b';
+          offlineNotice.classList.add('show');
+        });
+      });
+    </script>
 
     <script type="module" src="scripts/main.js"></script>
   </body>

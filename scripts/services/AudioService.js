@@ -6,6 +6,7 @@
 export class AudioService {
   constructor() {
     this.audioContext = null;
+    this.encodingCancelled = false;
   }
 
   /**
@@ -208,6 +209,120 @@ export class AudioService {
     }
 
     return new Blob([arrayBuffer], { type: 'audio/wav' });
+  }
+
+  /**
+   * Check if lamejs library is available
+   * @returns {boolean} True if lamejs is loaded
+   */
+  isLameAvailable() {
+    return typeof lamejs !== 'undefined';
+  }
+
+  /**
+   * Convert AudioBuffer to MP3 blob
+   * @param {AudioBuffer} buffer - Audio buffer
+   * @param {number} bitrate - MP3 bitrate (128, 192, 256, 320)
+   * @param {Function} onProgress - Progress callback (percent)
+   * @returns {Promise<Blob>} MP3 blob
+   */
+  async audioBufferToMP3(buffer, bitrate = 192, onProgress = null) {
+    // Check if lamejs is available
+    if (!this.isLameAvailable()) {
+      throw new Error('MP3 encoder not available. Please check your internet connection and reload the page.');
+    }
+
+    // Reset cancellation flag
+    this.encodingCancelled = false;
+
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const samples = buffer.length;
+
+    // Create MP3 encoder
+    const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, bitrate);
+
+    // Convert float samples to 16-bit PCM
+    const left = this.floatTo16BitPCM(buffer.getChannelData(0));
+    const right = numChannels > 1 ? this.floatTo16BitPCM(buffer.getChannelData(1)) : null;
+
+    // Encode in chunks
+    const mp3Data = [];
+    const blockSize = 1152; // MP3 frame size
+    const totalBlocks = Math.ceil(samples / blockSize);
+
+    for (let i = 0; i < samples; i += blockSize) {
+      // Check for cancellation
+      if (this.encodingCancelled) {
+        throw new Error('MP3 encoding cancelled by user');
+      }
+
+      const leftChunk = left.subarray(i, i + blockSize);
+      const rightChunk = right ? right.subarray(i, i + blockSize) : null;
+
+      // Encode chunk
+      let mp3buf;
+      if (numChannels === 1) {
+        mp3buf = mp3encoder.encodeBuffer(leftChunk);
+      } else {
+        mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+      }
+
+      if (mp3buf.length > 0) {
+        mp3Data.push(new Int8Array(mp3buf));
+      }
+
+      // Report progress
+      if (onProgress) {
+        const currentBlock = Math.floor(i / blockSize) + 1;
+        const progress = Math.floor((currentBlock / totalBlocks) * 100);
+        onProgress(progress);
+      }
+
+      // Yield to UI thread periodically
+      if (i % (blockSize * 10) === 0) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    }
+
+    // Check for cancellation before flush
+    if (this.encodingCancelled) {
+      throw new Error('MP3 encoding cancelled by user');
+    }
+
+    // Flush encoder
+    const mp3buf = mp3encoder.flush();
+    if (mp3buf.length > 0) {
+      mp3Data.push(new Int8Array(mp3buf));
+    }
+
+    // Report completion
+    if (onProgress) {
+      onProgress(100);
+    }
+
+    return new Blob(mp3Data, { type: 'audio/mp3' });
+  }
+
+  /**
+   * Convert Float32Array to Int16Array (PCM)
+   * @param {Float32Array} input - Float samples (-1.0 to 1.0)
+   * @returns {Int16Array} 16-bit PCM samples
+   */
+  floatTo16BitPCM(input) {
+    const output = new Int16Array(input.length);
+    for (let i = 0; i < input.length; i++) {
+      const s = Math.max(-1, Math.min(1, input[i]));
+      output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    return output;
+  }
+
+  /**
+   * Cancel ongoing MP3 encoding
+   */
+  cancelEncoding() {
+    this.encodingCancelled = true;
   }
 
   /**
