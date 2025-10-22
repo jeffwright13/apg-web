@@ -151,29 +151,37 @@ export class TTSService {
 
     const utterance = new SpeechSynthesisUtterance(text);
 
-    // Configure speech parameters
-    utterance.rate = options.slow ? 0.5 : 1.0;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+    // Configure speech parameters from options
+    utterance.rate = options.rate || 1.0;
+    utterance.pitch = options.pitch || 1.0;
+    utterance.volume = options.volume !== undefined ? options.volume : 1.0;
 
-    // Get available voices - prefer local/native voices over remote
+    // Get available voices
     const voices = speechSynthesis.getVoices();
     if (voices.length > 0) {
       let selectedVoice;
 
-      if (this.isFirefox) {
-        // Firefox-specific: ONLY use local voices, avoid remote at all costs
-        selectedVoice =
-          voices.find((v) => v.lang === 'en-US' && v.localService) ||
-          voices.find((v) => v.lang.startsWith('en-') && v.localService) ||
-          // If no local voice found, use first available (fallback)
-          voices[0];
-      } else {
-        // Chrome/Safari: Any voice works fine
-        selectedVoice =
-          voices.find((v) => v.lang === 'en-US') ||
-          voices.find((v) => v.lang.startsWith('en-')) ||
-          voices[0];
+      // If a specific voice is requested, use it
+      if (options.voiceName) {
+        selectedVoice = voices.find(v => v.name === options.voiceName);
+      }
+
+      // Fallback to default voice selection if not found
+      if (!selectedVoice) {
+        if (this.isFirefox) {
+          // Firefox-specific: ONLY use local voices, avoid remote at all costs
+          selectedVoice =
+            voices.find((v) => v.lang === 'en-US' && v.localService) ||
+            voices.find((v) => v.lang.startsWith('en-') && v.localService) ||
+            // If no local voice found, use first available (fallback)
+            voices[0];
+        } else {
+          // Chrome/Safari: Any voice works fine
+          selectedVoice =
+            voices.find((v) => v.lang === 'en-US') ||
+            voices.find((v) => v.lang.startsWith('en-')) ||
+            voices[0];
+        }
       }
 
       utterance.voice = selectedVoice;
@@ -245,7 +253,12 @@ export class TTSService {
         utterance.onerror = (event) => {
           if (!hasEnded) {
             hasEnded = true;
-            reject(new Error(`Speech synthesis failed: ${event.error}`));
+            // "interrupted" error is expected when user stops playback - don't treat as error
+            if (event.error === 'interrupted' || this.cancelRequested) {
+              reject(new Error('Playback stopped by user'));
+            } else {
+              reject(new Error(`Speech synthesis failed: ${event.error}`));
+            }
           }
         };
 

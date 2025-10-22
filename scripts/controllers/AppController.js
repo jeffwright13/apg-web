@@ -129,6 +129,9 @@ export class AppController {
       { id: 'pitch', valueId: 'pitch-value' },
       { id: 'volume-gain', valueId: 'volume-gain-value' },
       { id: 'openai-speed', valueId: 'openai-speed-value' },
+      { id: 'web-speech-rate', valueId: 'web-speech-rate-value' },
+      { id: 'web-speech-pitch', valueId: 'web-speech-pitch-value' },
+      { id: 'web-speech-volume', valueId: 'web-speech-volume-value' },
     ];
 
     sliders.forEach(({ id, valueId }) => {
@@ -188,14 +191,18 @@ export class AppController {
     const gttsSettings = document.getElementById('gtts-settings');
     const googleSettings = document.getElementById('google-cloud-settings');
     const openaiSettings = document.getElementById('openai-settings');
+    const webSpeechSettings = document.getElementById('web-speech-settings');
     const soundFileInput = document.getElementById('sound-file');
     const clearSoundBtn = document.getElementById('clear-sound-btn');
     const soundFileHelp = document.getElementById('sound-file-help');
+    const audioMixingSettings = document.getElementById('audio-mixing-settings');
 
+    // Show/hide browser warning
     if (warning) {
       warning.style.display = engine === 'web-speech' ? 'block' : 'none';
     }
 
+    // Show/hide engine-specific settings
     if (gttsSettings) {
       gttsSettings.style.display = engine === 'gtts' ? 'block' : 'none';
     }
@@ -209,7 +216,15 @@ export class AppController {
       openaiSettings.style.display = engine === 'openai' ? 'block' : 'none';
     }
 
-    // Disable background sound for Web Speech API (no mixing support)
+    if (webSpeechSettings) {
+      webSpeechSettings.style.display = engine === 'web-speech' ? 'block' : 'none';
+      // Load voices when Web Speech API is selected
+      if (engine === 'web-speech') {
+        this.loadWebSpeechVoices();
+      }
+    }
+
+    // Disable background sound and audio mixing for Web Speech API (no export support)
     const isWebSpeech = engine === 'web-speech';
     
     if (soundFileInput) {
@@ -227,6 +242,11 @@ export class AppController {
       soundFileHelp.textContent = isWebSpeech
         ? 'Not available (Web Speech API does not support mixing)'
         : 'Optional audio file (MP3, WAV, OGG, M4A, etc.)';
+    }
+
+    // Hide audio mixing settings for Web Speech API (no export/mixing support)
+    if (audioMixingSettings) {
+      audioMixingSettings.style.display = isWebSpeech ? 'none' : 'block';
     }
   }
 
@@ -326,6 +346,58 @@ export class AppController {
     }
   }
 
+  async loadWebSpeechVoices() {
+    if (!('speechSynthesis' in window)) {
+      return;
+    }
+
+    const voiceSelect = document.getElementById('web-speech-voice');
+    if (!voiceSelect) return;
+
+    // Wait for voices to load
+    const loadVoices = () => {
+      const voices = speechSynthesis.getVoices();
+      if (voices.length === 0) return;
+
+      // Clear existing options
+      voiceSelect.innerHTML = '';
+
+      // Filter for English voices and sort by local/remote
+      const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+      
+      // Sort: local voices first, then by name
+      englishVoices.sort((a, b) => {
+        if (a.localService !== b.localService) {
+          return a.localService ? -1 : 1; // Local first
+        }
+        return a.name.localeCompare(b.name);
+      });
+
+      // Add voices to dropdown
+      englishVoices.forEach((voice) => {
+        const option = document.createElement('option');
+        option.value = voice.name;
+        const localBadge = voice.localService ? '🖥️ ' : '☁️ ';
+        option.textContent = `${localBadge}${voice.name} (${voice.lang})`;
+        voiceSelect.appendChild(option);
+      });
+
+      // Select first local voice by default (better quality)
+      const firstLocal = englishVoices.find(v => v.localService);
+      if (firstLocal) {
+        voiceSelect.value = firstLocal.name;
+      }
+    };
+
+    // Try to load voices immediately
+    loadVoices();
+
+    // Also listen for voiceschanged event (some browsers need this)
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }
+
   /**
    * Generate or retrieve cached speech for a phrase
    * @param {Object} phrase - Phrase object with text
@@ -376,7 +448,6 @@ export class AppController {
       const phraseFile = formData.get('phrase-file');
       const soundFile = formData.get('sound-file');
       const ttsEngine = formData.get('tts-engine');
-      const slowSpeech = formData.get('slow-speech') === 'on';
 
       // Validate phrase file exists
       if (!phraseFile || phraseFile.size === 0) {
@@ -384,9 +455,19 @@ export class AppController {
         return;
       }
 
-      // Validate files
+      // Validate files BEFORE generating any TTS (to avoid wasting API calls)
       this.updateProgress(5, 'Validating files...');
       this.fileService.validateFileSize(phraseFile, 10);
+      
+      // Validate background audio file format early (before TTS generation)
+      if (soundFile && soundFile.size > 0) {
+        try {
+          await this.fileService.readAudioFile(soundFile);
+        } catch (error) {
+          this.showError(error.message);
+          return;
+        }
+      }
 
       // Read phrase file
       this.updateProgress(10, 'Reading phrase file...');
@@ -408,9 +489,20 @@ export class AppController {
       if (ttsEngine === 'web-speech') {
         this.updateProgress(100, 'Ready to play!');
 
+        // Get Web Speech API settings
+        const voiceName = formData.get('web-speech-voice') || '';
+        const rate = parseFloat(formData.get('web-speech-rate')) || 1.0;
+        const pitch = parseFloat(formData.get('web-speech-pitch')) || 1.0;
+        const volume = parseFloat(formData.get('web-speech-volume')) || 1.0;
+
         // Store phrases and options for playback
         this.currentPhrases = phrases;
-        this.currentOptions = { slow: slowSpeech };
+        this.currentOptions = {
+          voiceName,
+          rate,
+          pitch,
+          volume
+        };
 
         this.showWebSpeechControls();
         return;
@@ -419,6 +511,7 @@ export class AppController {
       // Handle gTTS (Google Translate TTS)
       if (ttsEngine === 'gtts') {
         const tld = formData.get('gtts-accent') || 'com';
+        const slowSpeech = formData.get('gtts-slow-speech') === 'on';
 
         const ttsOptions = {
           tld,

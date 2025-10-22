@@ -94,7 +94,7 @@
               </button>
             </div>
 
-            <!-- TTS Engine -->
+            <!-- TTS Engine Selection -->
             <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
               <label for="tts-engine" style="margin-bottom: 0;">
                 Text-to-Speech Engine
@@ -112,7 +112,7 @@
                   Web Speech API (free - playback only, browser-dependent)
                 </option>
                 <option value="gtts" disabled>
-                  Google Translate TTS (legacy feaure - coming soon)
+                  Google Translate TTS (legacy feature - coming soon)
                 </option>
                 <option value="elevenlabs" disabled>
                   ElevenLabs (premium feature - coming soon)
@@ -120,30 +120,86 @@
               </select>
 
             <!-- Browser Warning (Web Speech API) -->
-            <div id="browser-warning" style="display: none; margin-top: 1rem; margin-bottom: 1.5rem; padding: 0.75rem; background: var(--card-background-color); border-left: 3px solid var(--del-color); border-radius: 0.25rem;">
-              <small style="color: var(--muted-color); line-height: 1.6;">
-                ⚠️ <strong style="color: var(--del-color);">Browser Compatibility:</strong> Web Speech API audio quality varies significantly by browser. <strong>Chrome</strong> and <strong>Edge</strong> provide the best results. Firefox and Safari may produce poor quality audio.
+            <div id="browser-warning" style="display: none; margin-top: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: var(--card-background-color); border-left: 3px solid var(--del-color); border-radius: 0.25rem;">
+              <small style="color: var(--muted-color); line-height: 1.8;">
+                ⓘ <strong>Limitations:</strong> Web Speech API plays directly through your speakers and doesn't support audio export or background mixing.
                 <br /><br />
-                <strong>Note:</strong> Web Speech API plays directly through your speakers and doesn't support audio export or background mixing.
+                ⓘ <strong style="color: var(--del-color);">Browser Compatibility:</strong> Audio quality varies significantly by browser. <strong>Chrome</strong> and <strong>Edge</strong> provide the best results. Firefox and Safari may produce poor quality audio.
                 <br /><br />
-                For consistent, high-quality audio across all browsers with export and mixing support, use Google Cloud TTS.
+                💡 <strong>Recommendation:</strong> For consistent, high-quality audio across all browsers with export and mixing support, use <strong>OpenAI TTS</strong> or <strong>Google Cloud TTS</strong>.
               </small>
             </div>
 
-            <!-- gTTS Settings -->
-            <div id="gtts-settings" style="display: none">
-              <label for="gtts-accent">
-                Accent/Region
-                <select id="gtts-accent" name="gtts-accent">
-                  <option value="com">United States</option>
-                  <option value="co.uk">United Kingdom</option>
-                  <option value="com.au">Australia</option>
-                  <option value="ca">Canada</option>
-                  <option value="co.in">India</option>
-                  <option value="ie">Ireland</option>
-                  <option value="co.za">South Africa</option>
+            <!-- ========== ENGINE-SPECIFIC SETTINGS ========== -->
+
+            <!-- OpenAI TTS Settings -->
+            <div id="openai-settings" style="display: none">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+                <label for="openai-api-key" style="margin-bottom: 0;">
+                  OpenAI API Key
+                </label>
+                <small>
+                  <a
+                    href="https://platform.openai.com/api-keys"
+                    target="_blank"
+                    >Get API Key</a
+                  >
+                </small>
+              </div>
+              <div style="display: flex; gap: 0.5rem">
+                <input
+                  type="password"
+                  id="openai-api-key"
+                  name="openai-api-key"
+                  placeholder="Enter your OpenAI API key (stored locally in browser)"
+                  style="flex: 1"
+                />
+                <button
+                  type="button"
+                  id="save-openai-key-btn"
+                  class="secondary"
+                  style="flex: 0 0 auto"
+                >
+                  Save
+                </button>
+              </div>
+
+              <label for="openai-voice">
+                Voice
+                <select id="openai-voice" name="openai-voice">
+                  <option value="nova">Nova (Female - warm and friendly)</option>
+                  <option value="shimmer">Shimmer (Female - soft and gentle)</option>
+                  <option value="alloy">Alloy (Neutral - balanced)</option>
+                  <option value="echo">Echo (Male)</option>
+                  <option value="fable">Fable (Male - British)</option>
+                  <option value="onyx">Onyx (Male - deep)</option>
                 </select>
               </label>
+
+              <details>
+                <summary>Advanced TTS Settings</summary>
+
+                <label for="openai-model">
+                  Model Quality
+                  <select id="openai-model" name="openai-model">
+                    <option value="tts-1">Standard ($15/1M chars)</option>
+                    <option value="tts-1-hd">HD Quality ($30/1M chars)</option>
+                  </select>
+                </label>
+
+                <label for="openai-speed">
+                  Speed: <span id="openai-speed-value">1.0</span>
+                  <input
+                    type="range"
+                    id="openai-speed"
+                    name="openai-speed"
+                    min="0.25"
+                    max="4.0"
+                    step="0.25"
+                    value="1.0"
+                  />
+                </label>
+              </details>
             </div>
 
             <!-- Google Cloud TTS Settings -->
@@ -193,7 +249,7 @@
               </label>
 
               <details>
-                <summary>Advanced Voice Settings</summary>
+                <summary>Advanced TTS Settings</summary>
 
                 <label for="speaking-rate">
                   Speaking Rate: <span id="speaking-rate-value">1.0</span>
@@ -236,82 +292,92 @@
               </details>
             </div>
 
-            <!-- OpenAI TTS Settings -->
-            <div id="openai-settings" style="display: none">
-              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
-                <label for="openai-api-key" style="margin-bottom: 0;">
-                  OpenAI API Key
-                </label>
-                <small>
-                  <a
-                    href="https://platform.openai.com/api-keys"
-                    target="_blank"
-                    >Get API Key</a
-                  >
-                </small>
-              </div>
-              <div style="display: flex; gap: 0.5rem">
-                <input
-                  type="password"
-                  id="openai-api-key"
-                  name="openai-api-key"
-                  placeholder="Enter your OpenAI API key (stored locally in browser)"
-                  style="flex: 1"
-                />
-                <button
-                  type="button"
-                  id="save-openai-key-btn"
-                  class="secondary"
-                  style="flex: 0 0 auto"
-                >
-                  Save
-                </button>
-              </div>
-
-              <label for="openai-voice">
+            <!-- Web Speech API Settings -->
+            <div id="web-speech-settings" style="display: none">
+              <label for="web-speech-voice">
                 Voice
-                <select id="openai-voice" name="openai-voice">
-                  <option value="nova">Nova (Female - warm and friendly)</option>
-                  <option value="shimmer">Shimmer (Female - soft and gentle)</option>
-                  <option value="alloy">Alloy (Neutral - balanced)</option>
-                  <option value="echo">Echo (Male)</option>
-                  <option value="fable">Fable (Male - British)</option>
-                  <option value="onyx">Onyx (Male - deep)</option>
+                <select id="web-speech-voice" name="web-speech-voice">
+                  <option value="">Loading voices...</option>
                 </select>
               </label>
 
-              <label for="openai-model">
-                Model Quality
-                <select id="openai-model" name="openai-model">
-                  <option value="tts-1">Standard ($15/1M chars)</option>
-                  <option value="tts-1-hd">HD Quality ($30/1M chars)</option>
+              <details>
+                <summary>Advanced TTS Settings</summary>
+
+                <label for="web-speech-rate">
+                  Speaking Rate: <span id="web-speech-rate-value">1.0</span>
+                  <input
+                    type="range"
+                    id="web-speech-rate"
+                    name="web-speech-rate"
+                    min="0.5"
+                    max="2.0"
+                    step="0.1"
+                    value="1.0"
+                  />
+                </label>
+
+                <label for="web-speech-pitch">
+                  Pitch: <span id="web-speech-pitch-value">1.0</span>
+                  <input
+                    type="range"
+                    id="web-speech-pitch"
+                    name="web-speech-pitch"
+                    min="0.5"
+                    max="2.0"
+                    step="0.1"
+                    value="1.0"
+                  />
+                </label>
+
+                <label for="web-speech-volume">
+                  Volume: <span id="web-speech-volume-value">1.0</span>
+                  <input
+                    type="range"
+                    id="web-speech-volume"
+                    name="web-speech-volume"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value="1.0"
+                  />
+                </label>
+              </details>
+            </div>
+
+            <!-- gTTS Settings -->
+            <div id="gtts-settings" style="display: none">
+              <label for="gtts-accent">
+                Accent/Region
+                <select id="gtts-accent" name="gtts-accent">
+                  <option value="com">United States</option>
+                  <option value="co.uk">United Kingdom</option>
+                  <option value="com.au">Australia</option>
+                  <option value="ca">Canada</option>
+                  <option value="co.in">India</option>
+                  <option value="ie">Ireland</option>
+                  <option value="co.za">South Africa</option>
                 </select>
               </label>
 
-              <label for="openai-speed">
-                Speed: <span id="openai-speed-value">1.0</span>
-                <input
-                  type="range"
-                  id="openai-speed"
-                  name="openai-speed"
-                  min="0.25"
-                  max="4.0"
-                  step="0.25"
-                  value="1.0"
-                />
-              </label>
+              <details>
+                <summary>Advanced TTS Settings</summary>
+
+                <label>
+                  <input type="checkbox" id="gtts-slow-speech" name="gtts-slow-speech" />
+                  Slow speech (half speed)
+                </label>
+              </details>
             </div>
 
             <hr style="margin: 2rem 0; border: none; border-top: 1px solid var(--muted-border-color);" />
 
-            <!-- Options -->
-            <details>
-              <summary>Advanced Options</summary>
-
-              <label>
-                <input type="checkbox" id="slow-speech" name="slow-speech" />
-                Slow speech (half speed)
-              </label>
+            <!-- ========== AUDIO MIXING SETTINGS ========== -->
+            <details id="audio-mixing-settings">
+              <summary>Audio Mixing Settings</summary>
+              <small style="color: var(--muted-color); display: block; margin-bottom: 1rem;">
+                Post-processing settings for combining speech with background music
+              </small>
 
               <label for="attenuation">
                 Background volume adjustment (dB)
@@ -340,6 +406,9 @@
                   max="10000"
                   step="100"
                 />
+                <small style="color: var(--muted-color);">
+                  Duration of fade-in effect at the start
+                </small>
               </label>
 
               <label for="fade-out">
@@ -353,6 +422,9 @@
                   max="10000"
                   step="100"
                 />
+                <small style="color: var(--muted-color);">
+                  Duration of fade-out effect at the end
+                </small>
               </label>
             </details>
 
