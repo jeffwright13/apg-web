@@ -2,12 +2,18 @@
 
 Browser-based audio program generator - creates spoken audio from text with optional background music.
 
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/jeffwright13/apg-web/releases/tag/v1.0.0)
+[![Tests](https://img.shields.io/badge/tests-161%20passing-brightgreen.svg)](https://github.com/jeffwright13/apg-web)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 ## Features
 
 - **Text-to-Speech**: Convert text files to spoken audio
 - **Multiple TTS Engines**: OpenAI TTS, Google Cloud TTS, Web Speech API
 - **Background Music**: Mix speech with background audio (supports MP3, WAV, OGG, M4A, AAC, FLAC, AIFF)
 - **Audio Export**: Download as WAV (uncompressed) or MP3 (7-10x smaller)
+- **Robust Error Handling**: Automatic retry with exponential backoff for API failures
+- **Smart Caching**: IndexedDB-based caching with easy cache management
 - **Browser-Based**: No installation required, runs entirely in your browser
 - **Modern UI**: Clean, responsive interface with Pico.css
 - **Internet Required**: First load requires internet to download styling and MP3 encoder library
@@ -25,6 +31,28 @@ Browser-based audio program generator - creates spoken audio from text with opti
    ```
 4. Open `http://localhost:8080` in your browser
 5. Upload a phrase file and generate audio!
+
+## What's New in v1.0.0 🎉
+
+This is the first stable production release! Major improvements include:
+
+### Reliability & Error Handling
+- **Automatic Retry Logic**: Up to 3 retry attempts with exponential backoff (1s, 2s, 3s) for failed API requests
+- **Smart Error Detection**: Detects and handles empty responses, network issues, and API errors gracefully
+- **Detailed Logging**: Console logs show exactly what's happening during audio generation
+- **Better Error Messages**: Clear, actionable error messages with phrase context
+
+### User Experience
+- **Clear Cache Button**: Easy one-click cache management in the Output section
+- **Improved Reliability**: Successfully handles intermittent API issues and network problems
+- **Progress Tracking**: See which phrases are being generated and cached
+
+### Testing & Quality
+- **Comprehensive Test Suite**: 161 tests covering all major functionality
+- **100% Test Pass Rate**: All tests passing with proper mocking
+- **Better Code Quality**: ESLint and Prettier enforced via pre-commit hooks
+
+See the [full changelog](https://github.com/jeffwright13/apg-web/releases/tag/v1.0.0) for details.
 
 ## Text-to-Speech Engines
 
