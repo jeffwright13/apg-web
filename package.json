@@ -1,6 +1,6 @@
 {
   "name": "apg-web",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "Browser-based audio program generator - creates spoken audio from text with optional background music",
   "type": "module",
   "main": "index.html",
