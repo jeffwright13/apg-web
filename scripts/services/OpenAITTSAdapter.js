@@ -144,6 +144,7 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
       speed: options.speed || 1.0, // 0.25 to 4.0
     };
 
+    // eslint-disable-next-line no-console
     console.log('🔄 Making OpenAI TTS API request:', {
       text: text.substring(0, 50),
       model: requestBody.model,
@@ -163,6 +164,7 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
       body: JSON.stringify(requestBody),
     });
 
+    // eslint-disable-next-line no-console
     console.log('📡 API Response:', {
       status: response.status,
       statusText: response.statusText,
@@ -189,8 +191,10 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
     }
 
     // Read response as array buffer first to check size
+    // eslint-disable-next-line no-console
     console.log('📥 Reading response as array buffer...');
     const arrayBuffer = await response.arrayBuffer();
+    // eslint-disable-next-line no-console
     console.log('📥 Array buffer read complete:', arrayBuffer.byteLength, 'bytes');
 
     // Check for empty response and retry with exponential backoff
@@ -203,9 +207,11 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
       const maxRetries = 3;
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         const delay = attempt * 1000; // 1s, 2s, 3s
+        // eslint-disable-next-line no-console
         console.log(`⏳ Waiting ${delay}ms before retry ${attempt}/${maxRetries}...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         
+        // eslint-disable-next-line no-console
         console.log(`🔄 Retry attempt ${attempt}/${maxRetries}...`);
         const retryResponse = await fetch(`${this.baseUrl}/audio/speech`, {
           method: 'POST',
@@ -225,9 +231,11 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
         }
         
         const retryBuffer = await retryResponse.arrayBuffer();
+        // eslint-disable-next-line no-console
         console.log(`📥 Retry ${attempt} buffer size: ${retryBuffer.byteLength} bytes`);
         
         if (retryBuffer.byteLength > 0) {
+          // eslint-disable-next-line no-console
           console.log(`✅ Retry ${attempt} succeeded!`);
           const mimeType = this.getMimeType(requestBody.response_format);
           return new Blob([retryBuffer], { type: mimeType });
@@ -243,6 +251,7 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
     const mimeType = this.getMimeType(requestBody.response_format);
     const audioBlob = new Blob([arrayBuffer], { type: mimeType });
     
+    // eslint-disable-next-line no-console
     console.log('📦 Created blob:', {
       size: audioBlob.size,
       type: audioBlob.type

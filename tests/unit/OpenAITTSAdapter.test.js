@@ -246,7 +246,6 @@ describe('OpenAITTSAdapter', () => {
     });
 
     test('generates speech with default options', async () => {
-      const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
       fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
@@ -263,7 +262,6 @@ describe('OpenAITTSAdapter', () => {
     });
 
     test('uses custom voice option', async () => {
-      const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
       fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
@@ -278,7 +276,6 @@ describe('OpenAITTSAdapter', () => {
     });
 
     test('uses custom model option', async () => {
-      const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
       fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
@@ -293,7 +290,6 @@ describe('OpenAITTSAdapter', () => {
     });
 
     test('uses custom speed option', async () => {
-      const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
       fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
@@ -308,7 +304,6 @@ describe('OpenAITTSAdapter', () => {
     });
 
     test('uses custom format option', async () => {
-      const mockBlob = new Blob(['audio data'], { type: 'audio/mpeg' });
       fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
@@ -369,7 +364,6 @@ describe('OpenAITTSAdapter', () => {
     });
 
     test('returns blob with correct MIME type', async () => {
-      const mockBlob = new Blob(['audio data'], { type: 'audio/mpeg' });
       fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
@@ -506,7 +500,6 @@ describe('OpenAITTSAdapter', () => {
       expect(isValid).toBe(true);
 
       // Generate speech
-      const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
       fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
@@ -523,7 +516,6 @@ describe('OpenAITTSAdapter', () => {
 
     test('handles all voice options', async () => {
       const voices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
-      const mockBlob = new Blob(['audio'], { type: 'audio/wav' });
 
       for (const voice of voices) {
         fetch.mockResolvedValueOnce(createMockResponse({
@@ -540,7 +532,6 @@ describe('OpenAITTSAdapter', () => {
 
     test('handles all audio formats', async () => {
       const formats = ['mp3', 'wav', 'opus', 'aac', 'flac', 'pcm'];
-      const mockBlob = new Blob(['audio'], { type: 'audio/wav' });
 
       for (const format of formats) {
         fetch.mockResolvedValueOnce(createMockResponse({
