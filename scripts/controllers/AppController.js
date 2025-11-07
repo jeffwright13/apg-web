@@ -64,6 +64,26 @@ export class AppController {
     }
   }
 
+  /**
+   * Handle clear cache button click
+   */
+  async handleClearCache() {
+    if (!confirm('Clear all cached TTS audio? This will force regeneration of all phrases on next use.')) {
+      return;
+    }
+
+    try {
+      await this.cacheService.clear();
+      const stats = await this.cacheService.getStats();
+      // eslint-disable-next-line no-console
+      console.log(`✅ Cache cleared! Now: ${stats.count} snippets, ${stats.totalSizeMB} MB`);
+      alert('Cache cleared successfully!');
+    } catch (error) {
+      console.error('Failed to clear cache:', error);
+      alert('Failed to clear cache. Check console for details.');
+    }
+  }
+
   attachEventListeners() {
     this.form.addEventListener('submit', (e) => this.handleSubmit(e));
     this.downloadBtn.addEventListener('click', () => this.handleDownload());
@@ -91,6 +111,12 @@ export class AppController {
         const soundInput = document.getElementById('sound-file');
         soundInput.value = '';
       });
+    }
+
+    // Clear TTS cache
+    const clearCacheBtn = document.getElementById('clear-cache-btn');
+    if (clearCacheBtn) {
+      clearCacheBtn.addEventListener('click', () => this.handleClearCache());
     }
 
     // Show/hide browser warning and settings based on TTS engine selection

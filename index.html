@@ -458,9 +458,20 @@
       <section id="output-section">
         <article>
           <header><h2>Output</h2></header>
-          <button type="submit" form="apg-form" id="generate-btn">
-            Generate Audio
-          </button>
+          <div style="display: flex; gap: 0.5rem; align-items: stretch;">
+            <button type="submit" form="apg-form" id="generate-btn" style="flex: 1;">
+              Generate Audio
+            </button>
+            <button 
+              type="button"
+              id="clear-cache-btn" 
+              class="secondary" 
+              style="flex: 0 0 auto;"
+              title="Clear cached TTS audio"
+            >
+              🗑️ Clear Cache
+            </button>
+          </div>
 
           <!-- Progress -->
           <div id="progress-container" style="display: none">

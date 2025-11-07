@@ -36,6 +36,27 @@ fetch.mock = {
   },
 };
 
+// Helper to create mock response with headers
+function createMockResponse(options = {}) {
+  const headers = new Map(options.headers || []);
+  if (!headers.has('content-type')) {
+    headers.set('content-type', 'audio/wav');
+  }
+  
+  return {
+    ok: options.ok !== undefined ? options.ok : true,
+    status: options.status || 200,
+    statusText: options.statusText || '',
+    headers: {
+      get: (key) => headers.get(key),
+      entries: () => headers.entries(),
+    },
+    blob: options.blob || (() => Promise.resolve(new Blob(['audio data'], { type: 'audio/wav' }))),
+    arrayBuffer: options.arrayBuffer || (() => Promise.resolve(new ArrayBuffer(1024))),
+    text: options.text || (() => Promise.resolve('')),
+  };
+}
+
 // Mock AudioContext
 class MockAudioContext {
   constructor() {
@@ -162,9 +183,9 @@ describe('OpenAITTSAdapter', () => {
 
   describe('validateApiKey', () => {
     test('returns true for valid API key', async () => {
-      fetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
-      });
+      }));
 
       const isValid = await adapter.validateApiKey('valid-key');
 
@@ -198,7 +219,7 @@ describe('OpenAITTSAdapter', () => {
     });
 
     test('sends test request with minimal payload', async () => {
-      fetch.mockResolvedValueOnce({ ok: true });
+      fetch.mockResolvedValueOnce(createMockResponse({ ok: true }));
 
       await adapter.validateApiKey('test-key');
 
@@ -226,10 +247,10 @@ describe('OpenAITTSAdapter', () => {
 
     test('generates speech with default options', async () => {
       const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
-      fetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
-        blob: () => Promise.resolve(mockBlob),
-      });
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      }));
 
       const result = await adapter.generateSpeech('Hello world');
 
@@ -243,10 +264,10 @@ describe('OpenAITTSAdapter', () => {
 
     test('uses custom voice option', async () => {
       const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
-      fetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
-        blob: () => Promise.resolve(mockBlob),
-      });
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      }));
 
       await adapter.generateSpeech('Hello', { voice: 'shimmer' });
 
@@ -258,10 +279,10 @@ describe('OpenAITTSAdapter', () => {
 
     test('uses custom model option', async () => {
       const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
-      fetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
-        blob: () => Promise.resolve(mockBlob),
-      });
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      }));
 
       await adapter.generateSpeech('Hello', { model: 'tts-1-hd' });
 
@@ -273,10 +294,10 @@ describe('OpenAITTSAdapter', () => {
 
     test('uses custom speed option', async () => {
       const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
-      fetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
-        blob: () => Promise.resolve(mockBlob),
-      });
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      }));
 
       await adapter.generateSpeech('Hello', { speed: 1.5 });
 
@@ -288,10 +309,10 @@ describe('OpenAITTSAdapter', () => {
 
     test('uses custom format option', async () => {
       const mockBlob = new Blob(['audio data'], { type: 'audio/mpeg' });
-      fetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
-        blob: () => Promise.resolve(mockBlob),
-      });
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      }));
 
       await adapter.generateSpeech('Hello', { format: 'mp3' });
 
@@ -322,12 +343,12 @@ describe('OpenAITTSAdapter', () => {
     });
 
     test('throws error on API failure', async () => {
-      fetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce(createMockResponse({
         ok: false,
         status: 401,
         statusText: 'Unauthorized',
         text: () => Promise.resolve('{"error":{"message":"Invalid API key"}}'),
-      });
+      }));
 
       await expect(
         adapter.generateSpeech('Hello')
@@ -335,12 +356,12 @@ describe('OpenAITTSAdapter', () => {
     });
 
     test('handles non-JSON error response', async () => {
-      fetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce(createMockResponse({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
         text: () => Promise.resolve('Server error'),
-      });
+      }));
 
       await expect(
         adapter.generateSpeech('Hello')
@@ -349,10 +370,10 @@ describe('OpenAITTSAdapter', () => {
 
     test('returns blob with correct MIME type', async () => {
       const mockBlob = new Blob(['audio data'], { type: 'audio/mpeg' });
-      fetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
-        blob: () => Promise.resolve(mockBlob),
-      });
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      }));
 
       const result = await adapter.generateSpeech('Hello', { format: 'mp3' });
 
@@ -480,16 +501,16 @@ describe('OpenAITTSAdapter', () => {
 
     test('full workflow: validate, generate, convert', async () => {
       // Validate key
-      fetch.mockResolvedValueOnce({ ok: true });
+      fetch.mockResolvedValueOnce(createMockResponse({ ok: true }));
       const isValid = await adapter.validateApiKey('test-key');
       expect(isValid).toBe(true);
 
       // Generate speech
       const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
-      fetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
-        blob: () => Promise.resolve(mockBlob),
-      });
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      }));
 
       const result = await adapter.generateSpeech('Hello world', {
         voice: 'nova',
@@ -505,10 +526,10 @@ describe('OpenAITTSAdapter', () => {
       const mockBlob = new Blob(['audio'], { type: 'audio/wav' });
 
       for (const voice of voices) {
-        fetch.mockResolvedValueOnce({
+        fetch.mockResolvedValueOnce(createMockResponse({
           ok: true,
-          blob: () => Promise.resolve(mockBlob),
-        });
+          arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+        }));
 
         const result = await adapter.generateSpeech('Test', { voice });
         expect(result).toBeInstanceOf(Blob);
@@ -522,10 +543,10 @@ describe('OpenAITTSAdapter', () => {
       const mockBlob = new Blob(['audio'], { type: 'audio/wav' });
 
       for (const format of formats) {
-        fetch.mockResolvedValueOnce({
+        fetch.mockResolvedValueOnce(createMockResponse({
           ok: true,
-          blob: () => Promise.resolve(mockBlob),
-        });
+          arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+        }));
 
         const result = await adapter.generateSpeech('Test', { format });
         expect(result).toBeInstanceOf(Blob);

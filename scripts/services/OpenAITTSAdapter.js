@@ -144,6 +144,16 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
       speed: options.speed || 1.0, // 0.25 to 4.0
     };
 
+    console.log('🔄 Making OpenAI TTS API request:', {
+      text: text.substring(0, 50),
+      model: requestBody.model,
+      voice: requestBody.voice,
+      format: requestBody.response_format
+    });
+
+    // Add small delay to avoid rate limiting (50ms)
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     const response = await fetch(`${this.baseUrl}/audio/speech`, {
       method: 'POST',
       headers: {
@@ -151,6 +161,15 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
+    });
+
+    console.log('📡 API Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      contentType: response.headers.get('content-type'),
+      contentLength: response.headers.get('content-length'),
+      headers: Array.from(response.headers.entries())
     });
 
     if (!response.ok) {
@@ -165,15 +184,71 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
         errorMessage = errorText || errorMessage;
       }
 
+      console.error('❌ OpenAI API Error:', errorMessage);
       throw new Error(`OpenAI TTS API error: ${errorMessage}`);
     }
 
-    // Response is already an audio blob
-    const audioBlob = await response.blob();
+    // Read response as array buffer first to check size
+    console.log('📥 Reading response as array buffer...');
+    const arrayBuffer = await response.arrayBuffer();
+    console.log('📥 Array buffer read complete:', arrayBuffer.byteLength, 'bytes');
 
-    // Ensure correct MIME type
+    // Check for empty response and retry with exponential backoff
+    if (arrayBuffer.byteLength === 0) {
+      const textPreview = text.length > 50 ? text.substring(0, 50) + '...' : text;
+      console.error(`❌ OpenAI returned empty audio for: "${textPreview}"`);
+      console.error('Response headers:', Array.from(response.headers.entries()));
+      
+      // Try up to 3 times with increasing delays
+      const maxRetries = 3;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const delay = attempt * 1000; // 1s, 2s, 3s
+        console.log(`⏳ Waiting ${delay}ms before retry ${attempt}/${maxRetries}...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        console.log(`🔄 Retry attempt ${attempt}/${maxRetries}...`);
+        const retryResponse = await fetch(`${this.baseUrl}/audio/speech`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+        
+        if (!retryResponse.ok) {
+          console.error(`❌ Retry ${attempt} failed with status: ${retryResponse.status}`);
+          if (attempt === maxRetries) {
+            throw new Error(`OpenAI API retry failed: ${retryResponse.statusText}`);
+          }
+          continue;
+        }
+        
+        const retryBuffer = await retryResponse.arrayBuffer();
+        console.log(`📥 Retry ${attempt} buffer size: ${retryBuffer.byteLength} bytes`);
+        
+        if (retryBuffer.byteLength > 0) {
+          console.log(`✅ Retry ${attempt} succeeded!`);
+          const mimeType = this.getMimeType(requestBody.response_format);
+          return new Blob([retryBuffer], { type: mimeType });
+        }
+        
+        if (attempt === maxRetries) {
+          throw new Error(`OpenAI API returned empty audio for phrase: "${textPreview}" after ${maxRetries} retries. This may be an API issue with this specific text.`);
+        }
+      }
+    }
+
+    // Convert to blob with correct MIME type
     const mimeType = this.getMimeType(requestBody.response_format);
-    return new Blob([audioBlob], { type: mimeType });
+    const audioBlob = new Blob([arrayBuffer], { type: mimeType });
+    
+    console.log('📦 Created blob:', {
+      size: audioBlob.size,
+      type: audioBlob.type
+    });
+    
+    return audioBlob;
   }
 
   /**
