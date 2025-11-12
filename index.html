@@ -66,6 +66,21 @@
         </div>
       </header>
 
+      <!-- Recent Projects Section -->
+      <section id="recent-projects-section" style="display: none;">
+        <article>
+          <header style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Recent Projects</h2>
+            <button type="button" id="clear-projects-btn" class="secondary" style="margin: 0; padding: 0.25rem 0.75rem; font-size: 0.875rem;">
+              Clear All
+            </button>
+          </header>
+          <div id="projects-list" style="display: grid; gap: 0.75rem;">
+            <!-- Projects will be inserted here -->
+          </div>
+        </article>
+      </section>
+
       <section id="input-section">
         <article>
           <header><h2>Input</h2></header>
@@ -461,6 +476,15 @@
           <div style="display: flex; gap: 0.5rem; align-items: stretch;">
             <button type="submit" form="apg-form" id="generate-btn" style="flex: 1;">
               Generate Audio
+            </button>
+            <button 
+              type="button"
+              id="stop-generation-btn" 
+              class="secondary" 
+              style="flex: 0 0 auto; display: none;"
+              title="Stop audio generation"
+            >
+              ⏹️ Stop
             </button>
             <button 
               type="button"

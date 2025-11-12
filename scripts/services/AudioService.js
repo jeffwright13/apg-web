@@ -27,7 +27,31 @@ export class AudioService {
    */
   async decodeAudioData(arrayBuffer) {
     const context = this.getAudioContext();
-    return context.decodeAudioData(arrayBuffer);
+    
+    // Validate input
+    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+      throw new Error('Cannot decode empty audio buffer');
+    }
+    
+    // Log buffer info for debugging
+    // eslint-disable-next-line no-console
+    console.log('🎵 Decoding audio buffer:', {
+      size: arrayBuffer.byteLength,
+      type: arrayBuffer.constructor.name
+    });
+    
+    try {
+      return await context.decodeAudioData(arrayBuffer);
+    } catch (error) {
+      // Log the first few bytes to help diagnose the issue
+      const bytes = new Uint8Array(arrayBuffer.slice(0, 16));
+      const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+      console.error('❌ Failed to decode audio buffer');
+      console.error('Buffer size:', arrayBuffer.byteLength, 'bytes');
+      console.error('First 16 bytes (hex):', hex);
+      console.error('Decode error:', error.message);
+      throw new Error(`Audio decode failed: ${error.message}. Buffer may be corrupted or invalid format.`);
+    }
   }
 
   /**

@@ -7,6 +7,7 @@ import { FileService } from '../services/FileService.js';
 import { TTSService } from '../services/TTSService.js';
 import { AudioService } from '../services/AudioService.js';
 import { TTSCacheService } from '../services/TTSCacheService.js';
+import { ProjectCacheService } from '../services/ProjectCacheService.js';
 import { parseTextFile } from '../utils/parser.js';
 
 export class AppController {
@@ -25,18 +26,24 @@ export class AppController {
     this.ttsService = new TTSService();
     this.audioService = new AudioService();
     this.cacheService = new TTSCacheService();
+    this.projectCache = new ProjectCacheService();
 
     // State
     this.currentAudioBlob = null;
     this.currentAudioBuffer = null;
     this.currentPhrases = null;
     this.currentOptions = null;
+    this.currentPhraseFileName = null;
+    this.currentBackgroundMusicFile = null;
     this.isPlaying = false;
+    this.isGenerating = false;
+    this.generationCancelled = false;
   }
 
   async initialize() {
     this.form = document.getElementById('apg-form');
     this.generateBtn = document.getElementById('generate-btn');
+    this.stopGenerationBtn = document.getElementById('stop-generation-btn');
     this.outputSection = document.getElementById('output-section');
     this.progressContainer = document.getElementById('progress-container');
     this.audioPlayer = document.getElementById('audio-player');
@@ -46,8 +53,9 @@ export class AppController {
 
     this.attachEventListeners();
     
-    // Initialize cache in background (don't block app startup)
+    // Initialize caches in background (don't block app startup)
     this.initializeCache();
+    this.initializeProjectCache();
   }
 
   async initializeCache() {
@@ -61,6 +69,22 @@ export class AppController {
       console.log(`📦 TTS Cache: ${stats.count} snippets, ${stats.totalSizeMB} MB`);
     } catch (error) {
       console.warn('Cache initialization failed (caching disabled):', error);
+    }
+  }
+
+  async initializeProjectCache() {
+    try {
+      await this.projectCache.init();
+      
+      // Load and display recent projects
+      await this.loadRecentProjects();
+      
+      // Log project stats
+      const stats = await this.projectCache.getStats();
+      // eslint-disable-next-line no-console
+      console.log(`💼 Projects: ${stats.count} saved, ${stats.totalSizeMB} MB`);
+    } catch (error) {
+      console.warn('Project cache initialization failed:', error);
     }
   }
 
@@ -84,9 +108,268 @@ export class AppController {
     }
   }
 
+  /**
+   * Handle clear all projects button click
+   */
+  async handleClearProjects() {
+    if (!confirm('Clear all saved projects? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await this.projectCache.clearAll();
+      await this.loadRecentProjects();
+      alert('All projects cleared successfully!');
+    } catch (error) {
+      console.error('Failed to clear projects:', error);
+      alert('Failed to clear projects. Check console for details.');
+    }
+  }
+
+  /**
+   * Load and display recent projects
+   */
+  async loadRecentProjects() {
+    try {
+      const projects = await this.projectCache.listProjects();
+      const projectsList = document.getElementById('projects-list');
+      const projectsSection = document.getElementById('recent-projects-section');
+
+      if (!projectsList || !projectsSection) return;
+
+      if (projects.length === 0) {
+        projectsSection.style.display = 'none';
+        return;
+      }
+
+      projectsSection.style.display = 'block';
+      projectsList.innerHTML = '';
+
+      projects.forEach((project) => {
+        const projectCard = this.createProjectCard(project);
+        projectsList.appendChild(projectCard);
+      });
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+    }
+  }
+
+  /**
+   * Create a project card element
+   */
+  createProjectCard(project) {
+    const card = document.createElement('div');
+    card.style.cssText = 'border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; padding: 1rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem;';
+
+    const info = document.createElement('div');
+    info.style.cssText = 'flex: 1; min-width: 0;';
+    
+    const name = document.createElement('strong');
+    name.textContent = project.name;
+    name.style.cssText = 'display: block; margin-bottom: 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+    
+    const meta = document.createElement('small');
+    meta.style.opacity = '0.7';
+    const musicInfo = project.hasBackgroundMusic ? ` • Music: ${project.backgroundMusicName || 'Yes'}` : '';
+    meta.textContent = `${this.projectCache.formatTimestamp(project.timestamp)} • ${project.ttsEngine}${musicInfo}`;
+    
+    info.appendChild(name);
+    info.appendChild(meta);
+
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display: flex; gap: 0.5rem;';
+
+    const restoreBtn = document.createElement('button');
+    restoreBtn.textContent = 'Restore';
+    restoreBtn.className = 'secondary';
+    restoreBtn.style.cssText = 'margin: 0; padding: 0.25rem 0.75rem; font-size: 0.875rem;';
+    restoreBtn.onclick = () => this.restoreProject(project.id);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = '×';
+    deleteBtn.className = 'secondary';
+    deleteBtn.style.cssText = 'margin: 0; padding: 0.25rem 0.5rem; font-size: 1.25rem; line-height: 1;';
+    deleteBtn.title = 'Delete project';
+    deleteBtn.onclick = () => this.deleteProject(project.id);
+
+    actions.appendChild(restoreBtn);
+    actions.appendChild(deleteBtn);
+
+    card.appendChild(info);
+    card.appendChild(actions);
+
+    return card;
+  }
+
+  /**
+   * Restore a project
+   */
+  async restoreProject(projectId) {
+    try {
+      const project = await this.projectCache.getProject(projectId);
+      if (!project) {
+        alert('Project not found');
+        return;
+      }
+
+      // eslint-disable-next-line no-console
+      console.log(`🔄 Restoring project: "${project.name}"`);
+
+      // Create a File object from the phrase content
+      const phraseFile = new File([project.phraseFileContent], project.name, {
+        type: 'text/plain',
+      });
+
+      // Set the phrase file
+      const phraseInput = document.getElementById('phrase-file');
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(phraseFile);
+      phraseInput.files = dataTransfer.files;
+
+      // Set background music if available
+      if (project.backgroundMusic) {
+        const soundInput = document.getElementById('sound-file');
+        const musicFile = new File([project.backgroundMusic], project.backgroundMusicName || 'background.mp3', {
+          type: project.backgroundMusic.type,
+        });
+        const musicTransfer = new DataTransfer();
+        musicTransfer.items.add(musicFile);
+        soundInput.files = musicTransfer.files;
+      }
+
+      // Set TTS engine
+      const engineSelect = document.getElementById('tts-engine');
+      if (engineSelect) {
+        engineSelect.value = project.ttsEngine;
+        this.updateEngineUI(project.ttsEngine);
+      }
+
+      // Set TTS options based on engine
+      if (project.ttsEngine === 'openai') {
+        const voiceSelect = document.getElementById('openai-voice');
+        const modelSelect = document.getElementById('openai-model');
+        const speedSlider = document.getElementById('openai-speed');
+        if (voiceSelect) voiceSelect.value = project.ttsOptions.voice || 'nova';
+        if (modelSelect) modelSelect.value = project.ttsOptions.model || 'tts-1';
+        if (speedSlider) speedSlider.value = project.ttsOptions.speed || 1.0;
+      } else if (project.ttsEngine === 'google-cloud') {
+        const voiceSelect = document.getElementById('voice-name');
+        const rateSlider = document.getElementById('speaking-rate');
+        const pitchSlider = document.getElementById('pitch');
+        if (voiceSelect) voiceSelect.value = project.ttsOptions.voiceName || 'en-US-Neural2-F';
+        if (rateSlider) rateSlider.value = project.ttsOptions.speakingRate || 1.0;
+        if (pitchSlider) pitchSlider.value = project.ttsOptions.pitch || 0.0;
+      }
+
+      // Set export settings
+      if (project.exportSettings) {
+        const formatSelect = document.getElementById('export-format');
+        const bitrateSelect = document.getElementById('mp3-bitrate');
+        if (formatSelect) formatSelect.value = project.exportSettings.format || 'mp3';
+        if (bitrateSelect) bitrateSelect.value = project.exportSettings.bitrate || 192;
+      }
+
+      alert(`Project "${project.name}" restored! Click "Generate Audio" to recreate it.`);
+    } catch (error) {
+      console.error('Failed to restore project:', error);
+      alert('Failed to restore project. Check console for details.');
+    }
+  }
+
+  /**
+   * Delete a project
+   */
+  async deleteProject(projectId) {
+    try {
+      await this.projectCache.deleteProject(projectId);
+      await this.loadRecentProjects();
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      alert('Failed to delete project. Check console for details.');
+    }
+  }
+
+  /**
+   * Handle stop generation button click
+   */
+  handleStopGeneration() {
+    if (!this.isGenerating) return;
+    
+    this.generationCancelled = true;
+    this.updateProgress(0, 'Stopping...');
+    // eslint-disable-next-line no-console
+    console.log('⏹️ Generation cancelled by user');
+  }
+
+  /**
+   * Save current project after successful generation
+   */
+  async saveCurrentProject() {
+    try {
+      if (!this.currentPhraseFileName || !this.currentPhrases) {
+        return; // Nothing to save
+      }
+
+      const formData = new FormData(this.form);
+      const ttsEngine = formData.get('tts-engine');
+
+      // Get TTS options based on engine
+      let ttsOptions = {};
+      if (ttsEngine === 'openai') {
+        ttsOptions = {
+          voice: formData.get('openai-voice') || 'nova',
+          model: formData.get('openai-model') || 'tts-1',
+          speed: parseFloat(formData.get('openai-speed')) || 1.0,
+          format: 'wav',
+        };
+      } else if (ttsEngine === 'google-cloud') {
+        ttsOptions = {
+          voiceName: formData.get('voice-name') || 'en-US-Neural2-F',
+          languageCode: 'en-US',
+          speakingRate: parseFloat(formData.get('speaking-rate')) || 1.0,
+          pitch: parseFloat(formData.get('pitch')) || 0.0,
+          volumeGainDb: parseFloat(formData.get('volume-gain')) || 0.0,
+          audioEncoding: 'LINEAR16',
+          sampleRateHertz: 24000,
+        };
+      }
+
+      // Get export settings
+      const exportSettings = {
+        format: formData.get('export-format') || 'mp3',
+        bitrate: parseInt(formData.get('mp3-bitrate')) || 192,
+      };
+
+      // Reconstruct phrase file content
+      const phraseFileContent = this.currentPhrases
+        .map((p) => `${p.phrase || p.text}; ${p.duration}`)
+        .join('\n');
+
+      const projectData = {
+        name: this.currentPhraseFileName,
+        phraseFileContent,
+        backgroundMusic: this.currentBackgroundMusicFile,
+        backgroundMusicName: this.currentBackgroundMusicFile?.name,
+        ttsEngine,
+        ttsOptions,
+        exportSettings,
+      };
+
+      await this.projectCache.saveProject(projectData);
+      await this.loadRecentProjects();
+    } catch (error) {
+      console.error('Failed to save project:', error);
+      // Don't show alert - this is a background operation
+    }
+  }
+
   attachEventListeners() {
     this.form.addEventListener('submit', (e) => this.handleSubmit(e));
     this.downloadBtn.addEventListener('click', () => this.handleDownload());
+
+    if (this.stopGenerationBtn) {
+      this.stopGenerationBtn.addEventListener('click', () => this.handleStopGeneration());
+    }
 
     if (this.playBtn) {
       this.playBtn.addEventListener('click', () => this.handlePlay());
@@ -117,6 +400,12 @@ export class AppController {
     const clearCacheBtn = document.getElementById('clear-cache-btn');
     if (clearCacheBtn) {
       clearCacheBtn.addEventListener('click', () => this.handleClearCache());
+    }
+
+    // Clear all projects
+    const clearProjectsBtn = document.getElementById('clear-projects-btn');
+    if (clearProjectsBtn) {
+      clearProjectsBtn.addEventListener('click', () => this.handleClearProjects());
     }
 
     // Show/hide browser warning and settings based on TTS engine selection
@@ -484,6 +773,10 @@ export class AppController {
   async handleSubmit(event) {
     event.preventDefault();
 
+    // Reset cancellation flag
+    this.generationCancelled = false;
+    this.isGenerating = true;
+
     try {
       // Show output section with progress
       this.outputSection.style.display = 'block';
@@ -491,6 +784,7 @@ export class AppController {
       document.getElementById('playback-controls').style.display = 'none';
       document.getElementById('download-controls').style.display = 'none';
       this.generateBtn.disabled = true;
+      this.stopGenerationBtn.style.display = 'block';
 
       // Get form data
       const formData = new FormData(this.form);
@@ -522,6 +816,11 @@ export class AppController {
       this.updateProgress(10, 'Reading phrase file...');
       const phraseContent = await this.fileService.readTextFile(phraseFile);
       const phrases = parseTextFile(phraseContent);
+
+      // Store file names for project saving
+      this.currentPhraseFileName = phraseFile.name;
+      this.currentPhrases = phrases;
+      this.currentBackgroundMusicFile = soundFile && soundFile.size > 0 ? soundFile : null;
 
       // Set TTS engine
       this.ttsService.setEngine(ttsEngine);
@@ -573,6 +872,11 @@ export class AppController {
         const audioBuffers = [];
 
         for (let i = 0; i < phrases.length; i++) {
+          // Check for cancellation
+          if (this.generationCancelled) {
+            throw new Error('Generation cancelled by user');
+          }
+
           const phrase = phrases[i];
           const progress = 20 + (60 * (i + 1)) / phrases.length;
           this.updateProgress(
@@ -588,6 +892,9 @@ export class AppController {
           );
 
           // Convert to AudioBuffer
+          const phraseText = phrase.phrase || phrase.text || '';
+          // eslint-disable-next-line no-console
+          console.log(`🎵 About to decode phrase: "${phraseText.substring(0, 50)}"`);
           const arrayBuffer = await speechBlob.arrayBuffer();
           const audioBuffer =
             await this.audioService.decodeAudioData(arrayBuffer);
@@ -636,6 +943,10 @@ export class AppController {
 
         // Show output
         this.updateProgress(100, 'Complete!');
+        
+        // Save project for future restoration
+        await this.saveCurrentProject();
+        
         this.showOutput();
         return;
       }
@@ -664,6 +975,11 @@ export class AppController {
         const audioBuffers = [];
 
         for (let i = 0; i < phrases.length; i++) {
+          // Check for cancellation
+          if (this.generationCancelled) {
+            throw new Error('Generation cancelled by user');
+          }
+
           const phrase = phrases[i];
           const progress = 20 + (60 * (i + 1)) / phrases.length;
           this.updateProgress(
@@ -679,6 +995,9 @@ export class AppController {
           );
 
           // Convert to AudioBuffer
+          const phraseText = phrase.phrase || phrase.text || '';
+          // eslint-disable-next-line no-console
+          console.log(`🎵 About to decode phrase: "${phraseText.substring(0, 50)}"`);
           const arrayBuffer = await speechBlob.arrayBuffer();
           const audioBuffer =
             await this.audioService.decodeAudioData(arrayBuffer);
@@ -727,6 +1046,10 @@ export class AppController {
 
         // Show output
         this.updateProgress(100, 'Complete!');
+        
+        // Save project for future restoration
+        await this.saveCurrentProject();
+        
         this.showOutput();
         return;
       }
@@ -750,6 +1073,11 @@ export class AppController {
         const audioBuffers = [];
 
         for (let i = 0; i < phrases.length; i++) {
+          // Check for cancellation
+          if (this.generationCancelled) {
+            throw new Error('Generation cancelled by user');
+          }
+
           const phrase = phrases[i];
           const progress = 20 + (60 * (i + 1)) / phrases.length;
           this.updateProgress(
@@ -765,6 +1093,9 @@ export class AppController {
           );
 
           // Convert to AudioBuffer
+          const phraseText = phrase.phrase || phrase.text || '';
+          // eslint-disable-next-line no-console
+          console.log(`🎵 About to decode phrase: "${phraseText.substring(0, 50)}"`);
           const arrayBuffer = await speechBlob.arrayBuffer();
           const audioBuffer =
             await this.audioService.decodeAudioData(arrayBuffer);
@@ -813,18 +1144,21 @@ export class AppController {
 
         // Show output
         this.updateProgress(100, 'Complete!');
+        
+        // Save project for future restoration
+        await this.saveCurrentProject();
+        
         this.showOutput();
         return;
       }
-
-      // Other premium TTS engines
-      this.showError(
-        `${ttsEngine} is not yet implemented. Please use OpenAI TTS, Google Cloud TTS, or Web Speech API.`
-      );
     } catch (error) {
-      this.showError(error.message);
+      if (error.message !== 'Generation cancelled by user') {
+        this.showError(error.message);
+      }
     } finally {
+      this.isGenerating = false;
       this.generateBtn.disabled = false;
+      this.stopGenerationBtn.style.display = 'none';
     }
   }
 
