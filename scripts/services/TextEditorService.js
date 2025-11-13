@@ -22,18 +22,18 @@ Blast off!;2`,
 I'm doing great, thanks for asking!;1.5
 That's wonderful to hear.;1
 How about you?;1.5
-I'm fantastic! Thanks for asking.`,
+I'm fantastic! Thanks for asking.;2`,
       
       meditation: `Welcome to this brief meditation session.;3
 Take a deep breath in.;4
 And slowly breathe out.;4
 Feel your body relax with each breath.;3
-Continue breathing naturally.`,
+Continue breathing naturally.;2`,
       
       announcement: `Attention please.;2
 The event will begin in five minutes.;2
 Please take your seats.;1.5
-Thank you for your cooperation.`
+Thank you for your cooperation.;2`
     };
   }
 
