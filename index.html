@@ -69,15 +69,19 @@
       <!-- Recent Projects Section -->
       <section id="recent-projects-section" style="display: none;">
         <article>
-          <header style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>Recent Projects</h2>
-            <button type="button" id="clear-projects-btn" class="secondary" style="margin: 0; padding: 0.25rem 0.75rem; font-size: 0.875rem;">
-              Clear All
-            </button>
-          </header>
-          <div id="projects-list" style="display: grid; gap: 0.75rem;">
-            <!-- Projects will be inserted here -->
-          </div>
+          <details>
+            <summary>
+              <h2 style="margin: 0;">Recent Projects</h2>
+            </summary>
+            <div style="margin-bottom: 1rem;">
+              <button type="button" id="clear-projects-btn" class="secondary" style="margin: 0; padding: 0.25rem 0.75rem; font-size: 0.875rem;">
+                Clear All
+              </button>
+            </div>
+            <div id="projects-list" style="display: grid; gap: 0.75rem;">
+              <!-- Projects will be inserted here -->
+            </div>
+          </details>
         </article>
       </section>
 
@@ -86,30 +90,107 @@
           <header><h2>Input</h2></header>
 
           <form id="apg-form">
-            <!-- Phrase File -->
-            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
-              <label for="phrase-file" style="margin-bottom: 0;">
-                Phrase File
-              </label>
-              <small>Text file with phrases and pauses (required)</small>
-            </div>
-            <div style="display: flex; gap: 0.5rem; align-items: stretch">
-              <input
-                type="file"
-                id="phrase-file"
-                name="phrase-file"
-                accept=".txt"
-                style="flex: 1"
-              />
-              <button
-                type="button"
-                id="clear-phrase-btn"
-                class="secondary"
-                style="flex: 0 0 auto; height: auto;"
-                title="Clear phrase file"
-              >
-                Clear
+            <!-- Input Mode Toggle -->
+            <div class="input-mode-toggle">
+              <button type="button" id="mode-file-btn" class="active">
+                📁 Upload File
               </button>
+              <button type="button" id="mode-editor-btn">
+                ✏️ Text Editor
+              </button>
+            </div>
+
+            <!-- File Upload Mode -->
+            <div id="file-upload-mode">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+                <label for="phrase-file" style="margin-bottom: 0;">
+                  Phrase File
+                </label>
+                <small>Text file with phrases and pauses (required)</small>
+              </div>
+              <div style="display: flex; gap: 0.5rem; align-items: stretch">
+                <input
+                  type="file"
+                  id="phrase-file"
+                  name="phrase-file"
+                  accept=".txt"
+                  style="flex: 1"
+                />
+                <button
+                  type="button"
+                  id="clear-phrase-btn"
+                  class="secondary"
+                  style="flex: 0 0 auto; height: auto;"
+                  title="Clear phrase file"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <!-- Text Editor Mode -->
+            <div id="text-editor-mode" style="display: none;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+                <label style="margin-bottom: 0;">
+                  APG Program Editor
+                </label>
+                <small>Type or paste your program (supports mobile voice input)</small>
+              </div>
+              
+              <div class="editor-container">
+                <!-- Editor Toolbar -->
+                <div class="editor-toolbar">
+                  <select id="template-select" aria-label="Load template">
+                    <option value="">-- Select a template --</option>
+                    <option value="simple">Simple Example</option>
+                    <option value="loop">Countdown Loop</option>
+                    <option value="conversation">Two-Voice Conversation</option>
+                    <option value="meditation">Meditation Guide</option>
+                    <option value="announcement">Public Announcement</option>
+                  </select>
+                  <button type="button" id="save-editor-btn" class="secondary">
+                    💾 Save
+                  </button>
+                  <button type="button" id="load-editor-btn" class="secondary">
+                    📂 Load
+                  </button>
+                  <button type="button" id="clear-editor-btn" class="secondary">
+                    🗑️ Clear
+                  </button>
+                </div>
+
+                <!-- Editor -->
+                <div class="editor-wrapper">
+                  <div class="editor-main">
+                    <div id="line-numbers" class="line-numbers">
+                      <div class="line-number">1</div>
+                    </div>
+                    <textarea
+                      id="apg-editor"
+                      placeholder="Type your APG program here...&#10;&#10;Format: text;seconds&#10;&#10;Example:&#10;Hello world;2&#10;Welcome to APG;1.5&#10;Goodbye;3"
+                      spellcheck="false"
+                      autocomplete="off"
+                      autocorrect="off"
+                      autocapitalize="off"
+                    ></textarea>
+                  </div>
+                  <div class="editor-stats">
+                    <div class="editor-stats-item">
+                      <span>Lines: <strong id="stat-lines">0</strong></span>
+                      <span>|</span>
+                      <span>Characters: <strong id="stat-chars">0</strong></span>
+                      <span>|</span>
+                      <span>Words: <strong id="stat-words">0</strong></span>
+                    </div>
+                    <div class="editor-stats-item">
+                      <span id="auto-save-status">Auto-saved</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Validation Messages -->
+                <div id="editor-validation" class="editor-validation" style="display: none;"></div>
+              </div>
             </div>
 
             <!-- Background Sound -->
@@ -117,8 +198,25 @@
               <label for="sound-file" style="margin-bottom: 0;">
                 Background Sound
               </label>
-              <small id="sound-file-help">Optional audio file (MP3, WAV, OGG, M4A, etc.)</small>
+              <small id="sound-file-help">Optional audio file or sample</small>
             </div>
+            
+            <!-- Sample Audio Selector -->
+            <div style="margin-bottom: 0.5rem;">
+              <label for="sample-audio-select" style="font-size: 0.875rem; margin-bottom: 0.25rem;">
+                Or choose a sample:
+              </label>
+              <select id="sample-audio-select" name="sample-audio-select">
+                <option value="">-- Select a sample --</option>
+                <option value="sample1">Sample 1 - Ambient background music</option>
+                <option value="sample2">Sample 2 - Upbeat background music</option>
+                <option value="sample3">Sample 3 - Calm meditation music</option>
+                <option value="sample4">Sample 4 - Nature sounds</option>
+                <option value="sample5">Sample 5 - Corporate background</option>
+              </select>
+            </div>
+            
+            <!-- File Upload -->
             <div style="display: flex; gap: 0.5rem; align-items: stretch">
               <input
                 type="file"
