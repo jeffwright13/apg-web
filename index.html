@@ -653,7 +653,7 @@
 
       <footer>
         <small
-          >Audio Program Generator v1.0.0 | Created by Jeff Wright |
+          >Audio Program Generator <span id="app-version">v?.?.?</span> | Created by Jeff Wright |
           <a href="https://github.com/jeffwright13/apg-web">GitHub</a></small
         >
       </footer>
@@ -698,6 +698,23 @@
           offlineNotice.classList.add('show');
         });
       });
+    </script>
+
+    <!-- Load version from package.json -->
+    <script>
+      // Fetch and display version from package.json
+      fetch('./package.json')
+        .then(response => response.json())
+        .then(data => {
+          const versionElement = document.getElementById('app-version');
+          if (versionElement && data.version) {
+            versionElement.textContent = `v${data.version}`;
+          }
+        })
+        .catch(error => {
+          console.warn('Could not load version from package.json:', error);
+          // Fallback version is already in HTML
+        });
     </script>
 
     <script type="module" src="scripts/main.js"></script>
