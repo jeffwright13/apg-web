@@ -50,7 +50,7 @@ export class AppController {
     this.form = document.getElementById('apg-form');
     this.generateBtn = document.getElementById('generate-btn');
     this.stopGenerationBtn = document.getElementById('stop-generation-btn');
-    this.outputSection = document.getElementById('output-section');
+    this.outputSection = document.getElementById('generate-preview-section');
     this.progressContainer = document.getElementById('progress-container');
     this.audioPlayer = document.getElementById('audio-player');
     this.downloadBtn = document.getElementById('download-btn');
@@ -139,17 +139,23 @@ export class AppController {
     try {
       const projects = await this.projectCache.listProjects();
       const projectsList = document.getElementById('projects-list');
-      const projectsSection = document.getElementById('recent-projects-section');
+      const projectsDetails = document.getElementById('recent-projects-details');
+      const projectsCount = document.getElementById('projects-count');
 
-      if (!projectsList || !projectsSection) return;
+      if (!projectsList || !projectsDetails) return;
 
       if (projects.length === 0) {
-        projectsSection.style.display = 'none';
+        projectsDetails.style.display = 'none';
         return;
       }
 
-      projectsSection.style.display = 'block';
+      projectsDetails.style.display = 'block';
       projectsList.innerHTML = '';
+      
+      // Update count badge
+      if (projectsCount) {
+        projectsCount.textContent = `(${projects.length})`;
+      }
 
       projects.forEach((project) => {
         const projectCard = this.createProjectCard(project);
@@ -1344,16 +1350,19 @@ export class AppController {
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
 
-    progressBar.value = value;
-    progressText.textContent = text;
+    if (progressBar) {
+      progressBar.value = value;
+    }
+    if (progressText) {
+      progressText.textContent = text;
+    }
   }
 
   /**
    * Setup text editor functionality
    */
   setupTextEditor() {
-    const modeFileBtn = document.getElementById('mode-file-btn');
-    const modeEditorBtn = document.getElementById('mode-editor-btn');
+    const inputModeSelect = document.getElementById('input-mode');
     const fileUploadMode = document.getElementById('file-upload-mode');
     const textEditorMode = document.getElementById('text-editor-mode');
     const editor = document.getElementById('apg-editor');
@@ -1365,30 +1374,37 @@ export class AppController {
 
     if (!editor) return;
 
-    // Mode toggle
-    if (modeFileBtn && modeEditorBtn) {
-      modeFileBtn.addEventListener('click', () => {
-        this.inputMode = 'file';
-        modeFileBtn.classList.add('active');
-        modeEditorBtn.classList.remove('active');
-        fileUploadMode.style.display = 'block';
-        textEditorMode.style.display = 'none';
-      });
-
-      modeEditorBtn.addEventListener('click', () => {
-        this.inputMode = 'editor';
-        modeEditorBtn.classList.add('active');
-        modeFileBtn.classList.remove('active');
-        fileUploadMode.style.display = 'none';
-        textEditorMode.style.display = 'block';
+    // Mode selection
+    if (inputModeSelect) {
+      inputModeSelect.addEventListener('change', (e) => {
+        this.inputMode = e.target.value;
         
-        // Load saved content if available
-        const saved = this.editorService.loadFromLocalStorage();
-        if (saved && !editor.value) {
-          editor.value = saved;
-          this.updateEditorUI();
+        if (this.inputMode === 'file') {
+          fileUploadMode.style.display = 'block';
+          textEditorMode.style.display = 'none';
+        } else {
+          fileUploadMode.style.display = 'none';
+          textEditorMode.style.display = 'block';
+          
+          // Load saved content if available
+          const saved = this.editorService.loadFromLocalStorage();
+          if (saved && !editor.value) {
+            editor.value = saved;
+            this.updateEditorUI();
+          }
         }
       });
+      
+      // Initialize based on selected option
+      const initialMode = inputModeSelect.value;
+      this.inputMode = initialMode;
+      if (initialMode === 'editor') {
+        fileUploadMode.style.display = 'none';
+        textEditorMode.style.display = 'block';
+      } else {
+        fileUploadMode.style.display = 'block';
+        textEditorMode.style.display = 'none';
+      }
     }
 
     // Editor input - update line numbers and stats
@@ -1527,8 +1543,33 @@ export class AppController {
    * Setup sample audio selector
    */
   setupSampleAudioSelector() {
+    const audioSourceSelect = document.getElementById('audio-source');
+    const audioFileMode = document.getElementById('audio-file-mode');
+    const audioSampleMode = document.getElementById('audio-sample-mode');
     const sampleSelect = document.getElementById('sample-audio-select');
     const soundFileInput = document.getElementById('sound-file');
+
+    // Audio source mode switcher
+    if (audioSourceSelect) {
+      audioSourceSelect.addEventListener('change', (e) => {
+        const mode = e.target.value;
+        
+        if (mode === 'file') {
+          audioFileMode.style.display = 'block';
+          audioSampleMode.style.display = 'none';
+        } else if (mode === 'sample') {
+          audioFileMode.style.display = 'none';
+          audioSampleMode.style.display = 'block';
+        } else {
+          // none
+          audioFileMode.style.display = 'none';
+          audioSampleMode.style.display = 'none';
+          // Clear any selected file or sample
+          if (soundFileInput) soundFileInput.value = '';
+          if (sampleSelect) sampleSelect.value = '';
+        }
+      });
+    }
 
     if (!sampleSelect) return;
 

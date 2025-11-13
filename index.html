@@ -66,44 +66,51 @@
         </div>
       </header>
 
-      <!-- Recent Projects Section -->
-      <section id="recent-projects-section" style="display: none;">
+      <!-- RECENT PROJECTS Section -->
+      <section id="recent-projects-section">
         <article>
-          <details>
-            <summary>
-              <h2 style="margin: 0;">Recent Projects</h2>
+          <details id="recent-projects-details" style="display: none;">
+            <summary style="cursor: pointer;">
+              <h2 style="margin: 0; display: inline;">Recent Projects <span id="projects-count" style="opacity: 0.7; font-size: 0.875rem;"></span></h2>
             </summary>
-            <div style="margin-bottom: 1rem;">
+            <div style="margin-top: 1rem;">
+              <div id="projects-list" style="display: grid; gap: 0.75rem; margin-bottom: 1rem;">
+                <!-- Projects will be inserted here -->
+              </div>
               <button type="button" id="clear-projects-btn" class="secondary" style="margin: 0; padding: 0.25rem 0.75rem; font-size: 0.875rem;">
                 Clear All
               </button>
-            </div>
-            <div id="projects-list" style="display: grid; gap: 0.75rem;">
-              <!-- Projects will be inserted here -->
             </div>
           </details>
         </article>
       </section>
 
-      <section id="input-section">
+      <!-- CREATE PHRASE FILE Section -->
+      <section id="create-program-section">
         <article>
-          <header><h2>Input</h2></header>
+          <details open>
+            <summary style="cursor: pointer;">
+              <h2 style="margin: 0; display: inline;">Create Phrase File</h2>
+            </summary>
+            <div style="margin-top: 1rem;">
 
           <form id="apg-form">
-            <!-- Input Mode Toggle -->
-            <div class="input-mode-toggle">
-              <button type="button" id="mode-file-btn" class="active">
-                📁 Upload File
-              </button>
-              <button type="button" id="mode-editor-btn">
-                ✏️ Text Editor
-              </button>
+            <!-- Input Mode Selection -->
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+              <label for="input-mode" style="margin-bottom: 0; font-weight: 600;">
+                Text Input Method
+              </label>
+              <small>How you'll provide your program text</small>
             </div>
+            <select id="input-mode" name="input-mode" style="margin-bottom: 1.5rem;">
+              <option value="file" selected>📁 Upload File</option>
+              <option value="editor">✏️ Text Editor</option>
+            </select>
 
             <!-- File Upload Mode -->
             <div id="file-upload-mode">
               <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
-                <label for="phrase-file" style="margin-bottom: 0;">
+                <label for="phrase-file" style="margin-bottom: 0; font-weight: 600;">
                   Phrase File
                 </label>
                 <small>Text file with phrases and pauses (required)</small>
@@ -131,7 +138,7 @@
             <!-- Text Editor Mode -->
             <div id="text-editor-mode" style="display: none;">
               <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
-                <label style="margin-bottom: 0;">
+                <label style="margin-bottom: 0; font-weight: 600;">
                   APG Program Editor
                 </label>
                 <small>Type or paste your program (supports mobile voice input)</small>
@@ -167,7 +174,7 @@
                     </div>
                     <textarea
                       id="apg-editor"
-                      placeholder="Type your APG program here...&#10;&#10;Format: text;seconds&#10;&#10;Example:&#10;Hello world;2&#10;Welcome to APG;1.5&#10;Goodbye;3"
+                      placeholder="Type your APG program here...&#10;&#10;Format: text;seconds (duration optional, defaults to 0)&#10;&#10;Example:&#10;Hello world;2&#10;Welcome to APG;1.5&#10;Goodbye&#10;Short pause;0"
                       spellcheck="false"
                       autocomplete="off"
                       autocorrect="off"
@@ -192,53 +199,22 @@
                 <div id="editor-validation" class="editor-validation" style="display: none;"></div>
               </div>
             </div>
+            </div>
+          </details>
+        </article>
+      </section>
 
-            <!-- Background Sound -->
+      <!-- CONFIGURE TTS Section -->
+      <section id="configure-voice-section">
+        <article>
+          <details open>
+            <summary style="cursor: pointer;">
+              <h2 style="margin: 0; display: inline;">Configure TTS</h2>
+            </summary>
+            <div style="margin-top: 1rem;">
+              <!-- TTS Engine Selection -->
             <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
-              <label for="sound-file" style="margin-bottom: 0;">
-                Background Sound
-              </label>
-              <small id="sound-file-help">Optional audio file or sample</small>
-            </div>
-            
-            <!-- Sample Audio Selector -->
-            <div style="margin-bottom: 0.5rem;">
-              <label for="sample-audio-select" style="font-size: 0.875rem; margin-bottom: 0.25rem;">
-                Or choose a sample:
-              </label>
-              <select id="sample-audio-select" name="sample-audio-select">
-                <option value="">-- Select a sample --</option>
-                <option value="sample1">Sample 1 - Ambient background music</option>
-                <option value="sample2">Sample 2 - Upbeat background music</option>
-                <option value="sample3">Sample 3 - Calm meditation music</option>
-                <option value="sample4">Sample 4 - Nature sounds</option>
-                <option value="sample5">Sample 5 - Corporate background</option>
-              </select>
-            </div>
-            
-            <!-- File Upload -->
-            <div style="display: flex; gap: 0.5rem; align-items: stretch">
-              <input
-                type="file"
-                id="sound-file"
-                name="sound-file"
-                accept=".wav,.mp3,.ogg,.m4a,.aac,.flac,.aiff,.aif,.webm,audio/*"
-                style="flex: 1"
-              />
-              <button
-                type="button"
-                id="clear-sound-btn"
-                class="secondary"
-                style="flex: 0 0 auto; height: auto;"
-                title="Clear background sound file"
-              >
-                Clear
-              </button>
-            </div>
-
-            <!-- TTS Engine Selection -->
-            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
-              <label for="tts-engine" style="margin-bottom: 0;">
+              <label for="tts-engine" style="margin-bottom: 0; font-weight: 600;">
                 Text-to-Speech Engine
               </label>
               <small>Which voice generation service to use</small>
@@ -271,7 +247,7 @@
             <!-- OpenAI TTS Settings -->
             <div id="openai-settings" style="display: none">
               <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
-                <label for="openai-api-key" style="margin-bottom: 0;">
+                <label for="openai-api-key" style="margin-bottom: 0; font-weight: 600;">
                   OpenAI API Key
                 </label>
                 <small>
@@ -300,7 +276,7 @@
                 </button>
               </div>
 
-              <label for="openai-voice">
+              <label for="openai-voice" style="font-weight: 600;">
                 Voice
                 <select id="openai-voice" name="openai-voice">
                   <option value="nova">Nova (Female - warm and friendly)</option>
@@ -341,7 +317,7 @@
             <!-- Google Cloud TTS Settings -->
             <div id="google-cloud-settings" style="display: none">
               <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
-                <label for="google-api-key" style="margin-bottom: 0;">
+                <label for="google-api-key" style="margin-bottom: 0; font-weight: 600;">
                   Google Cloud API Key
                 </label>
                 <small>
@@ -370,7 +346,7 @@
                 </button>
               </div>
 
-              <label for="google-voice">
+              <label for="google-voice" style="font-weight: 600;">
                 Voice
                 <select id="google-voice" name="google-voice">
                   <option value="en-US-Neural2-C">
@@ -430,7 +406,7 @@
 
             <!-- Web Speech API Settings -->
             <div id="web-speech-settings" style="display: none">
-              <label for="web-speech-voice">
+              <label for="web-speech-voice" style="font-weight: 600;">
                 Voice
                 <select id="web-speech-voice" name="web-speech-voice">
                   <option value="">Loading voices...</option>
@@ -505,15 +481,84 @@
                 </label>
               </details>
             </div>
+            </div>
+          </details>
+        </article>
+      </section>
 
-            <hr style="margin: 2rem 0; border: none; border-top: 1px solid var(--muted-border-color);" />
+      <!-- BACKGROUND AUDIO Section (Optional) -->
+      <section id="background-audio-section">
+        <article>
+          <details>
+            <summary style="cursor: pointer;">
+              <h2 style="margin: 0; display: inline;">Background Audio <span style="opacity: 0.7; font-weight: normal; font-size: 0.875rem;">(Optional)</span></h2>
+            </summary>
+            <div style="margin-top: 1rem;">
+              <!-- Audio Source Selection -->
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+                <label for="audio-source" style="margin-bottom: 0; font-weight: 600;">
+                  Audio Source
+                </label>
+                <small>How you'll provide background audio</small>
+              </div>
+              <select id="audio-source" name="audio-source" style="margin-bottom: 1.5rem;">
+                <option value="none" selected>🚫 None</option>
+                <option value="file">📁 Upload File</option>
+                <option value="sample">🎵 Built-in Sample</option>
+              </select>
 
-            <!-- ========== AUDIO MIXING SETTINGS ========== -->
-            <details id="audio-mixing-settings">
-              <summary>Audio Mixing Settings</summary>
-              <small style="color: var(--muted-color); display: block; margin-bottom: 1rem;">
-                Post-processing settings for combining speech with background music
-              </small>
+              <!-- File Upload Mode -->
+              <div id="audio-file-mode" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+                  <label for="sound-file" style="margin-bottom: 0;">
+                    Background Sound File
+                  </label>
+                  <small>Audio file to mix with speech</small>
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: stretch; margin-bottom: 1.5rem;">
+                  <input
+                    type="file"
+                    id="sound-file"
+                    name="sound-file"
+                    accept=".wav,.mp3,.ogg,.m4a,.aac,.flac,.aiff,.aif,.webm,audio/*"
+                    style="flex: 1"
+                  />
+                  <button
+                    type="button"
+                    id="clear-sound-btn"
+                    class="secondary"
+                    style="flex: 0 0 auto; height: auto;"
+                    title="Clear background sound file"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              <!-- Sample Audio Mode -->
+              <div id="audio-sample-mode" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+                  <label for="sample-audio-select" style="margin-bottom: 0;">
+                    Built-in Sample
+                  </label>
+                  <small>Pre-loaded background music</small>
+                </div>
+                <select id="sample-audio-select" name="sample-audio-select" style="margin-bottom: 1.5rem;">
+                  <option value="">-- Select a sample --</option>
+                  <option value="sample1">Sample 1 - Ambient background music</option>
+                  <option value="sample2">Sample 2 - Upbeat background music</option>
+                  <option value="sample3">Sample 3 - Calm meditation music</option>
+                  <option value="sample4">Sample 4 - Nature sounds</option>
+                  <option value="sample5">Sample 5 - Corporate background</option>
+                </select>
+              </div>
+
+              <!-- Audio Mixing Settings -->
+              <details id="audio-mixing-settings">
+                <summary>Audio Mixing Settings</summary>
+                <small style="color: var(--muted-color); display: block; margin-bottom: 1rem;">
+                  Post-processing settings for combining speech with background music
+                </small>
 
               <label for="attenuation">
                 Background volume adjustment (dB)
@@ -563,17 +608,19 @@
                 </small>
               </label>
             </details>
-
+            </div>
+          </details>
           </form>
         </article>
       </section>
 
-      <section id="output-section">
+      <!-- GENERATE & PREVIEW Section -->
+      <section id="generate-preview-section">
         <article>
-          <header><h2>Output</h2></header>
+          <header><h2>Generate & Preview</h2></header>
           <div style="display: flex; gap: 0.5rem; align-items: stretch;">
             <button type="submit" form="apg-form" id="generate-btn" style="flex: 1;">
-              Generate Audio
+              Generate Audio Program
             </button>
             <button 
               type="button"

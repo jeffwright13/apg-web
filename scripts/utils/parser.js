@@ -16,17 +16,22 @@ export function parseTextFile(content) {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    // Match pattern: text; number
-    const match = trimmed.match(/^(.+?);\s*(\d+(?:\.\d+)?)\s*$/);
+    // Match pattern: text; number (duration optional, defaults to 0)
+    // Supports: "text;5", "text;", "text"
+    const match = trimmed.match(/^(.+?)(?:;\s*(\d+(?:\.\d+)?)?)?\s*$/);
 
     if (!match) {
       throw new Error(`Invalid line format: "${trimmed}"`);
     }
 
-    const [, phrase, duration] = match;
+    const [, phraseRaw, duration] = match;
+    
+    // Remove trailing semicolon from phrase if present
+    const phrase = phraseRaw.replace(/;\s*$/, '').trim();
+    
     phrases.push({
-      phrase: phrase.trim(),
-      duration: parseFloat(duration),
+      phrase: phrase,
+      duration: duration ? parseFloat(duration) : 0,
     });
   }
 

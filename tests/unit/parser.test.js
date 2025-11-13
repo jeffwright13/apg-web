@@ -52,16 +52,32 @@ describe('parseTextFile', () => {
     expect(result).toHaveLength(2);
   });
 
-  test('throws error for invalid format', () => {
-    const content = 'Invalid line without semicolon';
+  test('handles missing duration (defaults to 0)', () => {
+    const content = 'Hello world;';
+    const result = parseTextFile(content);
 
-    expect(() => parseTextFile(content)).toThrow('Invalid line format');
+    expect(result).toEqual([{ phrase: 'Hello world', duration: 0 }]);
   });
 
-  test('throws error for missing duration', () => {
-    const content = 'Hello world;';
+  test('handles no semicolon (defaults to 0)', () => {
+    const content = 'Hello world';
+    const result = parseTextFile(content);
 
-    expect(() => parseTextFile(content)).toThrow('Invalid line format');
+    expect(result).toEqual([{ phrase: 'Hello world', duration: 0 }]);
+  });
+
+  test('handles mixed formats', () => {
+    const content = `
+      With duration; 2
+      No duration;
+      No semicolon at all
+    `;
+    const result = parseTextFile(content);
+
+    expect(result).toHaveLength(3);
+    expect(result[0]).toEqual({ phrase: 'With duration', duration: 2 });
+    expect(result[1]).toEqual({ phrase: 'No duration', duration: 0 });
+    expect(result[2]).toEqual({ phrase: 'No semicolon at all', duration: 0 });
   });
 
   test('throws error for empty content', () => {
