@@ -8,6 +8,8 @@ import { TTSService } from '../services/TTSService.js';
 import { AudioService } from '../services/AudioService.js';
 import { TTSCacheService } from '../services/TTSCacheService.js';
 import { ProjectCacheService } from '../services/ProjectCacheService.js';
+import { TextEditorService } from '../services/TextEditorService.js';
+import { SampleAudioService } from '../services/SampleAudioService.js';
 import { parseTextFile } from '../utils/parser.js';
 
 export class AppController {
@@ -27,6 +29,8 @@ export class AppController {
     this.audioService = new AudioService();
     this.cacheService = new TTSCacheService();
     this.projectCache = new ProjectCacheService();
+    this.editorService = new TextEditorService();
+    this.sampleAudioService = new SampleAudioService();
 
     // State
     this.currentAudioBlob = null;
@@ -38,6 +42,8 @@ export class AppController {
     this.isPlaying = false;
     this.isGenerating = false;
     this.generationCancelled = false;
+    this.inputMode = 'file'; // 'file' or 'editor'
+    this.autoSaveTimeout = null;
   }
 
   async initialize() {
@@ -440,6 +446,12 @@ export class AppController {
 
     // Setup export format selector
     this.setupExportFormatSelector();
+
+    // Setup text editor
+    this.setupTextEditor();
+
+    // Setup sample audio selector
+    this.setupSampleAudioSelector();
   }
 
   setupSliderValueDisplays() {
@@ -792,15 +804,37 @@ export class AppController {
       const soundFile = formData.get('sound-file');
       const ttsEngine = formData.get('tts-engine');
 
-      // Validate phrase file exists
-      if (!phraseFile || phraseFile.size === 0) {
-        this.showError('Please select a phrase file');
-        return;
-      }
+      // Get phrase content based on input mode
+      let phraseContent;
+      let phraseFileName;
 
-      // Validate files BEFORE generating any TTS (to avoid wasting API calls)
-      this.updateProgress(5, 'Validating files...');
-      this.fileService.validateFileSize(phraseFile, 10);
+      if (this.inputMode === 'editor') {
+        // Get content from editor
+        const editor = document.getElementById('apg-editor');
+        phraseContent = editor ? editor.value : '';
+        
+        if (!phraseContent || !phraseContent.trim()) {
+          this.showError('Please enter program text in the editor');
+          return;
+        }
+        
+        phraseFileName = 'editor-program.txt';
+      } else {
+        // Get content from file upload
+        if (!phraseFile || phraseFile.size === 0) {
+          this.showError('Please select a phrase file');
+          return;
+        }
+
+        // Validate files BEFORE generating any TTS (to avoid wasting API calls)
+        this.updateProgress(5, 'Validating files...');
+        this.fileService.validateFileSize(phraseFile, 10);
+        
+        // Read phrase file
+        this.updateProgress(10, 'Reading phrase file...');
+        phraseContent = await this.fileService.readTextFile(phraseFile);
+        phraseFileName = phraseFile.name;
+      }
       
       // Validate background audio file format early (before TTS generation)
       if (soundFile && soundFile.size > 0) {
@@ -812,13 +846,12 @@ export class AppController {
         }
       }
 
-      // Read phrase file
-      this.updateProgress(10, 'Reading phrase file...');
-      const phraseContent = await this.fileService.readTextFile(phraseFile);
+      // Parse phrase content
+      this.updateProgress(10, 'Parsing program...');
       const phrases = parseTextFile(phraseContent);
 
       // Store file names for project saving
-      this.currentPhraseFileName = phraseFile.name;
+      this.currentPhraseFileName = phraseFileName;
       this.currentPhrases = phrases;
       this.currentBackgroundMusicFile = soundFile && soundFile.size > 0 ? soundFile : null;
 
@@ -1313,5 +1346,230 @@ export class AppController {
 
     progressBar.value = value;
     progressText.textContent = text;
+  }
+
+  /**
+   * Setup text editor functionality
+   */
+  setupTextEditor() {
+    const modeFileBtn = document.getElementById('mode-file-btn');
+    const modeEditorBtn = document.getElementById('mode-editor-btn');
+    const fileUploadMode = document.getElementById('file-upload-mode');
+    const textEditorMode = document.getElementById('text-editor-mode');
+    const editor = document.getElementById('apg-editor');
+    const lineNumbers = document.getElementById('line-numbers');
+    const templateSelect = document.getElementById('template-select');
+    const saveEditorBtn = document.getElementById('save-editor-btn');
+    const loadEditorBtn = document.getElementById('load-editor-btn');
+    const clearEditorBtn = document.getElementById('clear-editor-btn');
+
+    if (!editor) return;
+
+    // Mode toggle
+    if (modeFileBtn && modeEditorBtn) {
+      modeFileBtn.addEventListener('click', () => {
+        this.inputMode = 'file';
+        modeFileBtn.classList.add('active');
+        modeEditorBtn.classList.remove('active');
+        fileUploadMode.style.display = 'block';
+        textEditorMode.style.display = 'none';
+      });
+
+      modeEditorBtn.addEventListener('click', () => {
+        this.inputMode = 'editor';
+        modeEditorBtn.classList.add('active');
+        modeFileBtn.classList.remove('active');
+        fileUploadMode.style.display = 'none';
+        textEditorMode.style.display = 'block';
+        
+        // Load saved content if available
+        const saved = this.editorService.loadFromLocalStorage();
+        if (saved && !editor.value) {
+          editor.value = saved;
+          this.updateEditorUI();
+        }
+      });
+    }
+
+    // Editor input - update line numbers and stats
+    editor.addEventListener('input', () => {
+      this.updateEditorUI();
+      this.scheduleAutoSave();
+    });
+
+    // Sync scroll between editor and line numbers
+    editor.addEventListener('scroll', () => {
+      if (lineNumbers) {
+        lineNumbers.scrollTop = editor.scrollTop;
+      }
+    });
+
+    // Template selection
+    if (templateSelect) {
+      templateSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+          const template = this.editorService.loadTemplate(e.target.value);
+          editor.value = template;
+          this.updateEditorUI();
+          this.scheduleAutoSave();
+          e.target.value = ''; // Reset dropdown
+        }
+      });
+    }
+
+    // Save button
+    if (saveEditorBtn) {
+      saveEditorBtn.addEventListener('click', () => {
+        const success = this.editorService.saveToLocalStorage(editor.value);
+        const statusSpan = document.getElementById('auto-save-status');
+        if (statusSpan) {
+          statusSpan.textContent = success ? '✓ Saved' : '✗ Save failed';
+          setTimeout(() => {
+            statusSpan.textContent = 'Auto-saved';
+          }, 2000);
+        }
+      });
+    }
+
+    // Load button
+    if (loadEditorBtn) {
+      loadEditorBtn.addEventListener('click', () => {
+        const saved = this.editorService.loadFromLocalStorage();
+        if (saved) {
+          editor.value = saved;
+          this.updateEditorUI();
+        } else {
+          alert('No saved content found');
+        }
+      });
+    }
+
+    // Clear button
+    if (clearEditorBtn) {
+      clearEditorBtn.addEventListener('click', () => {
+        if (confirm('Clear editor content?')) {
+          editor.value = '';
+          this.updateEditorUI();
+          this.editorService.clearLocalStorage();
+        }
+      });
+    }
+
+    // Initial update
+    this.updateEditorUI();
+  }
+
+  /**
+   * Update editor UI (line numbers, stats, validation)
+   */
+  updateEditorUI() {
+    const editor = document.getElementById('apg-editor');
+    const lineNumbers = document.getElementById('line-numbers');
+    const statLines = document.getElementById('stat-lines');
+    const statChars = document.getElementById('stat-chars');
+    const statWords = document.getElementById('stat-words');
+    const validationDiv = document.getElementById('editor-validation');
+
+    if (!editor) return;
+
+    const text = editor.value;
+
+    // Update stats
+    const stats = this.editorService.getStats(text);
+    if (statLines) statLines.textContent = stats.lines;
+    if (statChars) statChars.textContent = stats.characters;
+    if (statWords) statWords.textContent = stats.words;
+
+    // Update line numbers
+    if (lineNumbers) {
+      lineNumbers.innerHTML = this.editorService.generateLineNumbers(stats.lines);
+    }
+
+    // Validate syntax
+    if (validationDiv && text.trim()) {
+      const validation = this.editorService.validateSyntax(text);
+      if (validation.valid) {
+        validationDiv.className = 'editor-validation valid';
+        validationDiv.innerHTML = '✓ Syntax valid';
+        validationDiv.style.display = 'block';
+      } else {
+        validationDiv.className = 'editor-validation invalid';
+        const errorList = validation.errors.map(err => `<li>${err}</li>`).join('');
+        validationDiv.innerHTML = `<strong>Syntax errors:</strong><ul>${errorList}</ul>`;
+        validationDiv.style.display = 'block';
+      }
+    } else if (validationDiv) {
+      validationDiv.style.display = 'none';
+    }
+  }
+
+  /**
+   * Schedule auto-save with debounce
+   */
+  scheduleAutoSave() {
+    if (this.autoSaveTimeout) {
+      clearTimeout(this.autoSaveTimeout);
+    }
+
+    this.autoSaveTimeout = setTimeout(() => {
+      const editor = document.getElementById('apg-editor');
+      if (editor && editor.value) {
+        this.editorService.saveToLocalStorage(editor.value);
+        const statusSpan = document.getElementById('auto-save-status');
+        if (statusSpan) {
+          statusSpan.textContent = 'Auto-saved';
+        }
+      }
+    }, 2000); // Auto-save after 2 seconds of inactivity
+  }
+
+  /**
+   * Setup sample audio selector
+   */
+  setupSampleAudioSelector() {
+    const sampleSelect = document.getElementById('sample-audio-select');
+    const soundFileInput = document.getElementById('sound-file');
+
+    if (!sampleSelect) return;
+
+    sampleSelect.addEventListener('change', async (e) => {
+      const sampleId = e.target.value;
+      
+      if (!sampleId) {
+        // Clear selection
+        return;
+      }
+
+      try {
+        // Load sample audio
+        const arrayBuffer = await this.sampleAudioService.loadSample(sampleId);
+        const sample = this.sampleAudioService.getSampleById(sampleId);
+        
+        // Create a File object from the array buffer
+        const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+        const file = new File([blob], sample.filename, { type: 'audio/mpeg' });
+        
+        // Set it as the sound file
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        soundFileInput.files = dataTransfer.files;
+        
+        // eslint-disable-next-line no-console
+        console.log(`✓ Loaded sample: ${sample.name}`);
+      } catch (error) {
+        console.error('Failed to load sample:', error);
+        alert(`Failed to load sample audio: ${error.message}`);
+        e.target.value = ''; // Reset selection
+      }
+    });
+
+    // Clear sample selection when user uploads their own file
+    if (soundFileInput) {
+      soundFileInput.addEventListener('change', () => {
+        if (soundFileInput.files.length > 0) {
+          sampleSelect.value = '';
+        }
+      });
+    }
   }
 }

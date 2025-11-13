@@ -49,3 +49,211 @@ footer {
 [style*='display: none'] {
   display: none !important;
 }
+
+/* ========== Text Editor Styles ========== */
+
+.editor-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.editor-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.editor-toolbar select {
+  flex: 1;
+  min-width: 200px;
+  margin: 0;
+}
+
+.editor-toolbar button {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  white-space: nowrap;
+}
+
+.editor-wrapper {
+  position: relative;
+  border: 1px solid var(--muted-border-color);
+  border-radius: 0.25rem;
+  background: var(--card-background-color);
+  overflow: hidden;
+}
+
+.editor-main {
+  display: flex;
+  min-height: 300px;
+  max-height: 500px;
+  overflow: auto;
+}
+
+.line-numbers {
+  flex-shrink: 0;
+  padding: 0.75rem 0.5rem;
+  background: var(--code-background-color);
+  color: var(--muted-color);
+  text-align: right;
+  user-select: none;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border-right: 1px solid var(--muted-border-color);
+  min-width: 3rem;
+}
+
+.line-number {
+  padding: 0 0.5rem;
+}
+
+.editor-content {
+  flex: 1;
+  padding: 0.75rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow: auto;
+}
+
+#apg-editor {
+  width: 100%;
+  min-height: 300px;
+  max-height: 500px;
+  padding: 0.75rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border: none;
+  background: transparent;
+  color: var(--color);
+  resize: vertical;
+  outline: none;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+#apg-editor:focus {
+  outline: none;
+}
+
+/* Syntax highlighting for format: text;seconds */
+.syntax-text {
+  color: #009900;
+}
+
+[data-theme="dark"] .syntax-text {
+  color: #66ff66;
+}
+
+.syntax-separator {
+  color: #666666;
+  font-weight: bold;
+}
+
+[data-theme="dark"] .syntax-separator {
+  color: #999999;
+}
+
+.syntax-duration {
+  color: #cc6600;
+  font-weight: bold;
+}
+
+[data-theme="dark"] .syntax-duration {
+  color: #ffaa66;
+}
+
+.editor-stats {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: var(--code-background-color);
+  border-top: 1px solid var(--muted-border-color);
+  font-size: 0.75rem;
+  color: var(--muted-color);
+}
+
+.editor-stats-item {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.editor-validation {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.editor-validation.valid {
+  background: rgba(81, 207, 102, 0.1);
+  border: 1px solid rgba(81, 207, 102, 0.3);
+  color: #51cf66;
+}
+
+.editor-validation.invalid {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  color: #ff6b6b;
+}
+
+.editor-validation ul {
+  margin: 0.5rem 0 0 0;
+  padding-left: 1.5rem;
+}
+
+.editor-validation li {
+  margin: 0.25rem 0;
+}
+
+/* Input mode toggle */
+.input-mode-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: var(--card-background-color);
+  border-radius: 0.25rem;
+  border: 1px solid var(--muted-border-color);
+}
+
+.input-mode-toggle button {
+  flex: 1;
+  margin: 0;
+  padding: 0.5rem 1rem;
+}
+
+.input-mode-toggle button.active {
+  background: var(--primary);
+  color: white;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .editor-toolbar {
+    flex-direction: column;
+  }
+  
+  .editor-toolbar select,
+  .editor-toolbar button {
+    width: 100%;
+  }
+  
+  .editor-main {
+    max-height: 400px;
+  }
+  
+  #apg-editor {
+    font-size: 0.8125rem;
+  }
+  
+  .line-numbers {
+    font-size: 0.8125rem;
+  }
+}
