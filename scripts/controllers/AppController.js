@@ -458,6 +458,9 @@ export class AppController {
 
     // Setup sample audio selector
     this.setupSampleAudioSelector();
+    
+    // Setup EQ controls
+    this.setupEQControls();
   }
 
   setupSliderValueDisplays() {
@@ -469,6 +472,9 @@ export class AppController {
       { id: 'web-speech-rate', valueId: 'web-speech-rate-value' },
       { id: 'web-speech-pitch', valueId: 'web-speech-pitch-value' },
       { id: 'web-speech-volume', valueId: 'web-speech-volume-value' },
+      { id: 'eq-low', valueId: 'eq-low-value' },
+      { id: 'eq-mid', valueId: 'eq-mid-value' },
+      { id: 'eq-high', valueId: 'eq-high-value' },
     ];
 
     sliders.forEach(({ id, valueId }) => {
@@ -1208,6 +1214,25 @@ export class AppController {
     this.progressContainer.style.display = 'none';
     document.getElementById('playback-controls').style.display = 'none';
     document.getElementById('download-controls').style.display = 'block';
+    
+    // Initialize EQ when audio is loaded
+    this.audioPlayer.addEventListener('loadedmetadata', () => {
+      this.initializeAudioEQ();
+    }, { once: true });
+  }
+  
+  /**
+   * Initialize EQ for the audio player
+   */
+  initializeAudioEQ() {
+    try {
+      this.audioService.initializeEQ(this.audioPlayer);
+      // eslint-disable-next-line no-console
+      console.log('🎚️ EQ initialized for audio player');
+    } catch (error) {
+      console.warn('Failed to initialize EQ:', error);
+      // EQ is optional, don't show error to user
+    }
   }
 
   showWebSpeechControls() {
@@ -1540,14 +1565,58 @@ export class AppController {
   }
 
   /**
+   * Load available samples and populate dropdown
+   */
+  async loadAndPopulateSamples() {
+    const sampleSelect = document.getElementById('sample-audio-select');
+    if (!sampleSelect) return;
+
+    try {
+      // Load available samples from the samples directory
+      await this.sampleAudioService.loadAvailableSamples();
+      const samples = this.sampleAudioService.getSamples();
+
+      // Clear existing options
+      sampleSelect.innerHTML = '';
+
+      // Add default option
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = samples.length > 0 
+        ? '-- Select a sample --' 
+        : '-- No samples available --';
+      sampleSelect.appendChild(defaultOption);
+
+      // Add sample options
+      samples.forEach(sample => {
+        const option = document.createElement('option');
+        option.value = sample.id;
+        option.textContent = sample.name;
+        sampleSelect.appendChild(option);
+      });
+
+      if (samples.length === 0) {
+        sampleSelect.disabled = true;
+      }
+    } catch (error) {
+      console.error('Failed to load samples:', error);
+      sampleSelect.innerHTML = '<option value="">-- Error loading samples --</option>';
+      sampleSelect.disabled = true;
+    }
+  }
+
+  /**
    * Setup sample audio selector
    */
-  setupSampleAudioSelector() {
+  async setupSampleAudioSelector() {
     const audioSourceSelect = document.getElementById('audio-source');
     const audioFileMode = document.getElementById('audio-file-mode');
     const audioSampleMode = document.getElementById('audio-sample-mode');
     const sampleSelect = document.getElementById('sample-audio-select');
     const soundFileInput = document.getElementById('sound-file');
+
+    // Load available samples
+    await this.loadAndPopulateSamples();
 
     // Audio source mode switcher
     if (audioSourceSelect) {
@@ -1573,11 +1642,19 @@ export class AppController {
 
     if (!sampleSelect) return;
 
+    // Get preview elements
+    const previewContainer = document.getElementById('sample-preview-container');
+    const previewPlayer = document.getElementById('sample-preview-player');
+    const previewName = document.getElementById('sample-preview-name');
+    const previewClose = document.getElementById('sample-preview-close');
+
     sampleSelect.addEventListener('change', async (e) => {
       const sampleId = e.target.value;
       
       if (!sampleId) {
-        // Clear selection
+        // Clear selection and hide preview
+        if (previewContainer) previewContainer.style.display = 'none';
+        if (previewPlayer) previewPlayer.src = '';
         return;
       }
 
@@ -1595,20 +1672,98 @@ export class AppController {
         dataTransfer.items.add(file);
         soundFileInput.files = dataTransfer.files;
         
+        // Show preview player
+        if (previewContainer && previewPlayer && previewName) {
+          const blobUrl = URL.createObjectURL(blob);
+          previewPlayer.src = blobUrl;
+          previewName.textContent = `${sample.name} - ${sample.description}`;
+          previewContainer.style.display = 'block';
+        }
+        
         // eslint-disable-next-line no-console
         console.log(`✓ Loaded sample: ${sample.name}`);
       } catch (error) {
         console.error('Failed to load sample:', error);
         alert(`Failed to load sample audio: ${error.message}`);
         e.target.value = ''; // Reset selection
+        if (previewContainer) previewContainer.style.display = 'none';
       }
     });
+
+    // Close preview button
+    if (previewClose) {
+      previewClose.addEventListener('click', () => {
+        if (previewContainer) previewContainer.style.display = 'none';
+        if (previewPlayer) {
+          previewPlayer.pause();
+          previewPlayer.currentTime = 0;
+        }
+      });
+    }
 
     // Clear sample selection when user uploads their own file
     if (soundFileInput) {
       soundFileInput.addEventListener('change', () => {
         if (soundFileInput.files.length > 0) {
           sampleSelect.value = '';
+          if (previewContainer) previewContainer.style.display = 'none';
+          if (previewPlayer) previewPlayer.src = '';
+        }
+      });
+    }
+  }
+
+  /**
+   * Setup EQ controls
+   */
+  setupEQControls() {
+    const eqLow = document.getElementById('eq-low');
+    const eqMid = document.getElementById('eq-mid');
+    const eqHigh = document.getElementById('eq-high');
+    const eqResetBtn = document.getElementById('eq-reset-btn');
+
+    // EQ slider event listeners
+    if (eqLow) {
+      eqLow.addEventListener('input', (e) => {
+        const gain = parseFloat(e.target.value);
+        this.audioService.setEQGain('low', gain);
+      });
+    }
+
+    if (eqMid) {
+      eqMid.addEventListener('input', (e) => {
+        const gain = parseFloat(e.target.value);
+        this.audioService.setEQGain('mid', gain);
+      });
+    }
+
+    if (eqHigh) {
+      eqHigh.addEventListener('input', (e) => {
+        const gain = parseFloat(e.target.value);
+        this.audioService.setEQGain('high', gain);
+      });
+    }
+
+    // Reset button
+    if (eqResetBtn) {
+      eqResetBtn.addEventListener('click', () => {
+        this.audioService.resetEQ();
+        
+        // Reset UI sliders
+        if (eqLow) {
+          eqLow.value = 0;
+          const valueDisplay = document.getElementById('eq-low-value');
+          if (valueDisplay) valueDisplay.textContent = '0';
+        }
+        if (eqMid) {
+          eqMid.value = 0;
+          const valueDisplay = document.getElementById('eq-mid-value');
+          if (valueDisplay) valueDisplay.textContent = '0';
+        }
+        if (eqHigh) {
+          eqHigh.value = 0;
+          const valueDisplay = document.getElementById('eq-high-value');
+          if (valueDisplay) valueDisplay.textContent = '0';
         }
       });
     }

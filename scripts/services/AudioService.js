@@ -7,6 +7,12 @@ export class AudioService {
   constructor() {
     this.audioContext = null;
     this.encodingCancelled = false;
+    
+    // EQ state
+    this.eqEnabled = false;
+    this.eqFilters = null;
+    this.sourceNode = null;
+    this.gainNode = null;
   }
 
   /**
@@ -375,9 +381,125 @@ export class AudioService {
   }
 
   /**
+   * Initialize 3-band parametric EQ for audio player
+   * @param {HTMLAudioElement} audioElement - Audio element to apply EQ to
+   * @returns {Object} EQ filters object with low, mid, high bands
+   */
+  initializeEQ(audioElement) {
+    const context = this.getAudioContext();
+    
+    // Disconnect existing nodes if any
+    this.disconnectEQ();
+    
+    // Create source from audio element
+    this.sourceNode = context.createMediaElementSource(audioElement);
+    
+    // Create 3-band EQ using BiquadFilter nodes
+    const lowShelf = context.createBiquadFilter();
+    lowShelf.type = 'lowshelf';
+    lowShelf.frequency.value = 100; // Hz
+    lowShelf.gain.value = 0; // dB
+    
+    const midPeak = context.createBiquadFilter();
+    midPeak.type = 'peaking';
+    midPeak.frequency.value = 1000; // Hz
+    midPeak.Q.value = 1.0; // Bandwidth
+    midPeak.gain.value = 0; // dB
+    
+    const highShelf = context.createBiquadFilter();
+    highShelf.type = 'highshelf';
+    highShelf.frequency.value = 3000; // Hz
+    highShelf.gain.value = 0; // dB
+    
+    // Create gain node for overall volume control
+    this.gainNode = context.createGain();
+    this.gainNode.gain.value = 1.0;
+    
+    // Connect the chain: source -> low -> mid -> high -> gain -> destination
+    this.sourceNode.connect(lowShelf);
+    lowShelf.connect(midPeak);
+    midPeak.connect(highShelf);
+    highShelf.connect(this.gainNode);
+    this.gainNode.connect(context.destination);
+    
+    this.eqFilters = {
+      low: lowShelf,
+      mid: midPeak,
+      high: highShelf
+    };
+    
+    this.eqEnabled = true;
+    
+    return this.eqFilters;
+  }
+  
+  /**
+   * Update EQ band gain
+   * @param {string} band - 'low', 'mid', or 'high'
+   * @param {number} gainDb - Gain in decibels (-12 to +12)
+   */
+  setEQGain(band, gainDb) {
+    if (!this.eqFilters || !this.eqFilters[band]) {
+      console.warn('EQ not initialized');
+      return;
+    }
+    
+    this.eqFilters[band].gain.value = gainDb;
+  }
+  
+  /**
+   * Reset all EQ bands to 0 dB (flat response)
+   */
+  resetEQ() {
+    if (!this.eqFilters) return;
+    
+    this.eqFilters.low.gain.value = 0;
+    this.eqFilters.mid.gain.value = 0;
+    this.eqFilters.high.gain.value = 0;
+  }
+  
+  /**
+   * Disconnect EQ nodes
+   */
+  disconnectEQ() {
+    if (this.sourceNode) {
+      try {
+        this.sourceNode.disconnect();
+      } catch {
+        // Already disconnected
+      }
+      this.sourceNode = null;
+    }
+    
+    if (this.eqFilters) {
+      try {
+        this.eqFilters.low.disconnect();
+        this.eqFilters.mid.disconnect();
+        this.eqFilters.high.disconnect();
+      } catch {
+        // Already disconnected
+      }
+      this.eqFilters = null;
+    }
+    
+    if (this.gainNode) {
+      try {
+        this.gainNode.disconnect();
+      } catch {
+        // Already disconnected
+      }
+      this.gainNode = null;
+    }
+    
+    this.eqEnabled = false;
+  }
+
+  /**
    * Clean up resources
    */
   dispose() {
+    this.disconnectEQ();
+    
     if (this.audioContext) {
       this.audioContext.close();
       this.audioContext = null;

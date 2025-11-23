@@ -1,49 +1,81 @@
 /**
  * Sample Audio Library Service
  * Manages bundled sample audio files for users who don't have their own
+ * Discovers available samples by checking for known filenames
  */
 
 export class SampleAudioService {
   constructor() {
-    // Sample audio files will be stored in /samples directory
-    // User will provide these files
-    this.samples = [
-      {
-        id: 'sample1',
-        name: 'Sample 1',
-        description: 'Ambient background music',
-        filename: 'sample1.mp3',
-        path: './samples/sample1.mp3'
-      },
-      {
-        id: 'sample2',
-        name: 'Sample 2',
-        description: 'Upbeat background music',
-        filename: 'sample2.mp3',
-        path: './samples/sample2.mp3'
-      },
-      {
-        id: 'sample3',
-        name: 'Sample 3',
-        description: 'Calm meditation music',
-        filename: 'sample3.mp3',
-        path: './samples/sample3.mp3'
-      },
-      {
-        id: 'sample4',
-        name: 'Sample 4',
-        description: 'Nature sounds',
-        filename: 'sample4.mp3',
-        path: './samples/sample4.mp3'
-      },
-      {
-        id: 'sample5',
-        name: 'Sample 5',
-        description: 'Corporate background',
-        filename: 'sample5.mp3',
-        path: './samples/sample5.mp3'
-      }
+    // List of expected sample filenames in /samples directory
+    // Add or remove filenames here - the service will check which ones exist
+    this.expectedFilenames = [
+      'meditation-yoga-relaxing-music.mp3',
+      'sea_waves.mp3',
+      'lunar_new_year.mp3',
+      'river_and_birds.mp3'
     ];
+    
+    this.samples = [];
+    this.samplesLoaded = false;
+  }
+
+  /**
+   * Convert filename to human-readable display name
+   * @param {string} filename - The filename (e.g., 'sea_waves.mp3')
+   * @returns {string} Display name (e.g., 'Sea Waves')
+   */
+  filenameToDisplayName(filename) {
+    // Remove extension
+    const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+    
+    // Replace underscores and hyphens with spaces
+    const withSpaces = nameWithoutExt.replace(/[_-]/g, ' ');
+    
+    // Capitalize each word
+    return withSpaces
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  /**
+   * Load and verify which sample files actually exist
+   * @returns {Promise<void>}
+   */
+  async loadAvailableSamples() {
+    if (this.samplesLoaded) return;
+
+    const availableSamples = [];
+
+    for (const filename of this.expectedFilenames) {
+      try {
+        const path = `./samples/${filename}`;
+        const response = await fetch(path, { method: 'HEAD' });
+        
+        if (response.ok) {
+          const id = filename.replace(/\.[^/.]+$/, '').replace(/[^a-z0-9]/gi, '_');
+          const displayName = this.filenameToDisplayName(filename);
+          
+          availableSamples.push({
+            id,
+            name: displayName,
+            description: displayName, // Use display name as description
+            filename,
+            path
+          });
+        }
+      } catch {
+        // File doesn't exist or can't be accessed, skip it
+        console.error(`Sample not available: ${filename}`);
+      }
+    }
+
+    this.samples = availableSamples;
+    this.samplesLoaded = true;
+
+    // eslint-disable-next-line no-console
+    console.log(`✓ Found ${this.samples.length} available sample(s):`, 
+      this.samples.map(s => s.filename).join(', '));
   }
 
   /**

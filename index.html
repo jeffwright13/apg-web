@@ -543,14 +543,18 @@
                   </label>
                   <small>Pre-loaded background music</small>
                 </div>
-                <select id="sample-audio-select" name="sample-audio-select" style="margin-bottom: 1.5rem;">
-                  <option value="">-- Select a sample --</option>
-                  <option value="sample1">Sample 1 - Ambient background music</option>
-                  <option value="sample2">Sample 2 - Upbeat background music</option>
-                  <option value="sample3">Sample 3 - Calm meditation music</option>
-                  <option value="sample4">Sample 4 - Nature sounds</option>
-                  <option value="sample5">Sample 5 - Corporate background</option>
+                <select id="sample-audio-select" name="sample-audio-select" style="margin-bottom: 0.5rem;">
+                  <option value="">-- Loading samples... --</option>
                 </select>
+                
+                <!-- Sample Preview Player -->
+                <div id="sample-preview-container" style="display: none; margin-bottom: 1.5rem; padding: 1rem; background: var(--card-background-color); border-radius: 0.5rem;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <strong id="sample-preview-name" style="font-size: 0.875rem;">Sample Preview</strong>
+                    <button type="button" id="sample-preview-close" class="secondary" style="margin: 0; padding: 0.25rem 0.5rem; font-size: 0.75rem;">✕</button>
+                  </div>
+                  <audio id="sample-preview-player" controls style="width: 100%; margin: 0;"></audio>
+                </div>
               </div>
 
               <!-- Audio Mixing Settings -->
@@ -668,6 +672,68 @@
           <!-- Download Controls (Premium TTS) -->
           <div id="download-controls" style="display: none">
             <audio id="audio-player" controls style="margin-top: 1rem"></audio>
+            
+            <!-- Equalizer Controls -->
+            <details style="margin-top: 1rem;">
+              <summary>🎚️ Equalizer (Tone Balance)</summary>
+              <small style="color: var(--muted-color); display: block; margin-bottom: 1rem;">
+                Adjust frequency response to reduce muddiness or enhance clarity. Changes apply in real-time during playback.
+              </small>
+              
+              <div style="display: grid; gap: 1rem;">
+                <label for="eq-low">
+                  Low (Bass - 100 Hz): <span id="eq-low-value">0</span> dB
+                  <input
+                    type="range"
+                    id="eq-low"
+                    name="eq-low"
+                    min="-12"
+                    max="12"
+                    step="1"
+                    value="0"
+                  />
+                  <small style="color: var(--muted-color);">
+                    Reduce if voice sounds boomy or muddy
+                  </small>
+                </label>
+
+                <label for="eq-mid">
+                  Mid (Voice - 1000 Hz): <span id="eq-mid-value">0</span> dB
+                  <input
+                    type="range"
+                    id="eq-mid"
+                    name="eq-mid"
+                    min="-12"
+                    max="12"
+                    step="1"
+                    value="0"
+                  />
+                  <small style="color: var(--muted-color);">
+                    Boost for clarity, reduce if voice sounds harsh
+                  </small>
+                </label>
+
+                <label for="eq-high">
+                  High (Treble - 3000 Hz): <span id="eq-high-value">0</span> dB
+                  <input
+                    type="range"
+                    id="eq-high"
+                    name="eq-high"
+                    min="-12"
+                    max="12"
+                    step="1"
+                    value="0"
+                  />
+                  <small style="color: var(--muted-color);">
+                    Boost for brightness, reduce if sibilant (harsh "s" sounds)
+                  </small>
+                </label>
+
+                <button type="button" id="eq-reset-btn" class="secondary" style="margin: 0;">
+                  Reset EQ
+                </button>
+              </div>
+            </details>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
               <div>
