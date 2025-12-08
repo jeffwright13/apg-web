@@ -430,15 +430,23 @@ export class AppController {
       this.updateEngineUI(ttsEngineSelect.value);
     }
 
-    // Save API key buttons
+    // Save API key buttons and input change detection
     const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+    const googleApiKeyInput = document.getElementById('google-api-key');
     if (saveApiKeyBtn) {
       saveApiKeyBtn.addEventListener('click', () => this.handleSaveApiKey('google-cloud'));
     }
+    if (googleApiKeyInput) {
+      googleApiKeyInput.addEventListener('input', () => this.updateApiKeySaveButton('google-cloud'));
+    }
 
     const saveOpenAIKeyBtn = document.getElementById('save-openai-key-btn');
+    const openaiApiKeyInput = document.getElementById('openai-api-key');
     if (saveOpenAIKeyBtn) {
       saveOpenAIKeyBtn.addEventListener('click', () => this.handleSaveApiKey('openai'));
+    }
+    if (openaiApiKeyInput) {
+      openaiApiKeyInput.addEventListener('input', () => this.updateApiKeySaveButton('openai'));
     }
 
     // Load saved API keys
@@ -461,6 +469,23 @@ export class AppController {
     
     // Setup EQ controls
     this.setupEQControls();
+    
+    // Setup loop preparation checkbox toggle
+    this.setupLoopPreparationToggle();
+  }
+
+  /**
+   * Setup the loop preparation checkbox to show/hide advanced options
+   */
+  setupLoopPreparationToggle() {
+    const prepareLoopCheckbox = document.getElementById('prepare-loop');
+    const loopOptions = document.getElementById('loop-options');
+    
+    if (prepareLoopCheckbox && loopOptions) {
+      prepareLoopCheckbox.addEventListener('change', (e) => {
+        loopOptions.style.display = e.target.checked ? 'block' : 'none';
+      });
+    }
   }
 
   setupSliderValueDisplays() {
@@ -655,6 +680,50 @@ export class AppController {
     if (engine === 'google-cloud') {
       await this.loadVoices();
     }
+
+    // Disable the save button since key is now saved
+    this.updateApiKeySaveButton(engine);
+  }
+
+  /**
+   * Update API key save button state based on whether input differs from saved value
+   */
+  updateApiKeySaveButton(engine) {
+    let inputId, btnId, storageKey;
+    
+    if (engine === 'google-cloud') {
+      inputId = 'google-api-key';
+      btnId = 'save-api-key-btn';
+      storageKey = 'google-cloud-tts-api-key';
+    } else if (engine === 'openai') {
+      inputId = 'openai-api-key';
+      btnId = 'save-openai-key-btn';
+      storageKey = 'openai-tts-api-key';
+    } else {
+      return;
+    }
+
+    const input = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
+    if (!input || !btn) return;
+
+    const currentValue = input.value.trim();
+    const savedValue = localStorage.getItem(storageKey) || '';
+    
+    // Enable button if there's a value and it differs from saved
+    const hasUnsavedChanges = currentValue && currentValue !== savedValue;
+    btn.disabled = !hasUnsavedChanges;
+    
+    // Update button text to indicate state
+    if (hasUnsavedChanges) {
+      btn.textContent = 'Save *';
+      btn.classList.add('contrast');
+      btn.classList.remove('secondary');
+    } else {
+      btn.textContent = currentValue ? 'Saved ✓' : 'Save';
+      btn.classList.remove('contrast');
+      btn.classList.add('secondary');
+    }
   }
 
   loadSavedApiKey() {
@@ -667,6 +736,8 @@ export class AppController {
         // Load voices if we have a key
         this.loadVoices();
       }
+      // Update button state for Google
+      this.updateApiKeySaveButton('google-cloud');
 
       // Load OpenAI API key
       const openaiApiKey = localStorage.getItem('openai-tts-api-key');
@@ -674,6 +745,8 @@ export class AppController {
       if (openaiApiKey && openaiApiKeyInput) {
         openaiApiKeyInput.value = openaiApiKey;
       }
+      // Update button state for OpenAI
+      this.updateApiKeySaveButton('openai');
     } catch (e) {
       console.warn('Failed to load saved API key', e);
     }
@@ -961,8 +1034,20 @@ export class AppController {
           this.updateProgress(90, 'Mixing with background sound...');
           const soundArrayBuffer =
             await this.fileService.readAudioFile(soundFile);
-          const backgroundBuffer =
+          let backgroundBuffer =
             await this.audioService.decodeAudioData(soundArrayBuffer);
+
+          // Prepare background for seamless looping if requested
+          const prepareLoop = formData.get('prepare-loop') === 'on';
+          if (prepareLoop) {
+            this.updateProgress(91, 'Preparing background for seamless looping...');
+            const silenceThresholdDb = parseInt(formData.get('silence-threshold')) || -40;
+            const crossfadeDurationMs = parseInt(formData.get('crossfade-duration')) || 100;
+            backgroundBuffer = this.audioService.prepareForLooping(backgroundBuffer, {
+              silenceThresholdDb,
+              crossfadeDurationMs
+            });
+          }
 
           const attenuation = parseInt(formData.get('attenuation')) || 0;
           const fadeIn = parseInt(formData.get('fade-in')) || 3000;
@@ -1064,8 +1149,20 @@ export class AppController {
           this.updateProgress(90, 'Mixing with background sound...');
           const soundArrayBuffer =
             await this.fileService.readAudioFile(soundFile);
-          const backgroundBuffer =
+          let backgroundBuffer =
             await this.audioService.decodeAudioData(soundArrayBuffer);
+
+          // Prepare background for seamless looping if requested
+          const prepareLoop = formData.get('prepare-loop') === 'on';
+          if (prepareLoop) {
+            this.updateProgress(91, 'Preparing background for seamless looping...');
+            const silenceThresholdDb = parseInt(formData.get('silence-threshold')) || -40;
+            const crossfadeDurationMs = parseInt(formData.get('crossfade-duration')) || 100;
+            backgroundBuffer = this.audioService.prepareForLooping(backgroundBuffer, {
+              silenceThresholdDb,
+              crossfadeDurationMs
+            });
+          }
 
           const attenuation = parseInt(formData.get('attenuation')) || 0;
           const fadeIn = parseInt(formData.get('fade-in')) || 3000;
@@ -1162,8 +1259,20 @@ export class AppController {
           this.updateProgress(90, 'Mixing with background sound...');
           const soundArrayBuffer =
             await this.fileService.readAudioFile(soundFile);
-          const backgroundBuffer =
+          let backgroundBuffer =
             await this.audioService.decodeAudioData(soundArrayBuffer);
+
+          // Prepare background for seamless looping if requested
+          const prepareLoop = formData.get('prepare-loop') === 'on';
+          if (prepareLoop) {
+            this.updateProgress(91, 'Preparing background for seamless looping...');
+            const silenceThresholdDb = parseInt(formData.get('silence-threshold')) || -40;
+            const crossfadeDurationMs = parseInt(formData.get('crossfade-duration')) || 100;
+            backgroundBuffer = this.audioService.prepareForLooping(backgroundBuffer, {
+              silenceThresholdDb,
+              crossfadeDurationMs
+            });
+          }
 
           const attenuation = parseInt(formData.get('attenuation')) || 0;
           const fadeIn = parseInt(formData.get('fade-in')) || 3000;
@@ -1391,7 +1500,6 @@ export class AppController {
     const fileUploadMode = document.getElementById('file-upload-mode');
     const textEditorMode = document.getElementById('text-editor-mode');
     const editor = document.getElementById('apg-editor');
-    const lineNumbers = document.getElementById('line-numbers');
     const templateSelect = document.getElementById('template-select');
     const saveEditorBtn = document.getElementById('save-editor-btn');
     const loadEditorBtn = document.getElementById('load-editor-btn');
@@ -1432,17 +1540,10 @@ export class AppController {
       }
     }
 
-    // Editor input - update line numbers and stats
+    // Editor input - update stats
     editor.addEventListener('input', () => {
       this.updateEditorUI();
       this.scheduleAutoSave();
-    });
-
-    // Sync scroll between editor and line numbers
-    editor.addEventListener('scroll', () => {
-      if (lineNumbers) {
-        lineNumbers.scrollTop = editor.scrollTop;
-      }
     });
 
     // Template selection
@@ -1501,11 +1602,10 @@ export class AppController {
   }
 
   /**
-   * Update editor UI (line numbers, stats, validation)
+   * Update editor UI (stats, validation)
    */
   updateEditorUI() {
     const editor = document.getElementById('apg-editor');
-    const lineNumbers = document.getElementById('line-numbers');
     const statLines = document.getElementById('stat-lines');
     const statChars = document.getElementById('stat-chars');
     const statWords = document.getElementById('stat-words');
@@ -1521,22 +1621,31 @@ export class AppController {
     if (statChars) statChars.textContent = stats.characters;
     if (statWords) statWords.textContent = stats.words;
 
-    // Update line numbers
-    if (lineNumbers) {
-      lineNumbers.innerHTML = this.editorService.generateLineNumbers(stats.lines);
-    }
-
     // Validate syntax
     if (validationDiv && text.trim()) {
       const validation = this.editorService.validateSyntax(text);
-      if (validation.valid) {
+      const hasErrors = validation.errors.length > 0;
+      const hasWarnings = validation.warnings && validation.warnings.length > 0;
+      
+      if (!hasErrors && !hasWarnings) {
         validationDiv.className = 'editor-validation valid';
         validationDiv.innerHTML = '✓ Syntax valid';
         validationDiv.style.display = 'block';
-      } else {
+      } else if (hasErrors) {
         validationDiv.className = 'editor-validation invalid';
         const errorList = validation.errors.map(err => `<li>${err}</li>`).join('');
-        validationDiv.innerHTML = `<strong>Syntax errors:</strong><ul>${errorList}</ul>`;
+        let html = `<strong>Syntax errors:</strong><ul>${errorList}</ul>`;
+        if (hasWarnings) {
+          const warningList = validation.warnings.map(w => `<li>${w}</li>`).join('');
+          html += `<strong style="color: #f0ad4e;">Warnings:</strong><ul style="color: #f0ad4e;">${warningList}</ul>`;
+        }
+        validationDiv.innerHTML = html;
+        validationDiv.style.display = 'block';
+      } else if (hasWarnings) {
+        // Only warnings, no errors - still valid
+        validationDiv.className = 'editor-validation valid';
+        const warningList = validation.warnings.map(w => `<li>${w}</li>`).join('');
+        validationDiv.innerHTML = `✓ Syntax valid<br><strong style="color: #f0ad4e;">Warnings:</strong><ul style="color: #f0ad4e;">${warningList}</ul>`;
         validationDiv.style.display = 'block';
       }
     } else if (validationDiv) {

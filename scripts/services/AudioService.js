@@ -494,6 +494,184 @@ export class AudioService {
     this.eqEnabled = false;
   }
 
+  // ============================================
+  // LOOP PREPARATION METHODS
+  // ============================================
+
+  /**
+   * Prepare an audio buffer for seamless looping by trimming silence
+   * and applying a crossfade at the loop point.
+   * @param {AudioBuffer} buffer - The audio buffer to prepare
+   * @param {Object} options - Preparation options
+   * @param {number} options.silenceThresholdDb - Silence threshold in dB (default: -40)
+   * @param {number} options.crossfadeDurationMs - Crossfade duration in ms (default: 100)
+   * @returns {AudioBuffer} Prepared audio buffer
+   */
+  prepareForLooping(buffer, options = {}) {
+    const silenceThresholdDb = options.silenceThresholdDb ?? -40;
+    const crossfadeDurationMs = options.crossfadeDurationMs ?? 100;
+
+    // Convert dB threshold to linear amplitude
+    const silenceThreshold = Math.pow(10, silenceThresholdDb / 20);
+
+    // eslint-disable-next-line no-console
+    console.log('🔄 Preparing audio for seamless looping...', {
+      originalLength: buffer.length,
+      sampleRate: buffer.sampleRate,
+      silenceThresholdDb,
+      crossfadeDurationMs
+    });
+
+    // Step 1: Detect and trim silence from start and end
+    const trimmedBuffer = this.trimSilence(buffer, silenceThreshold);
+
+    // Step 2: Apply crossfade at loop point
+    const loopReadyBuffer = this.applyLoopCrossfade(trimmedBuffer, crossfadeDurationMs);
+
+    // eslint-disable-next-line no-console
+    console.log('✓ Loop preparation complete:', {
+      originalLength: buffer.length,
+      trimmedLength: trimmedBuffer.length,
+      finalLength: loopReadyBuffer.length,
+      trimmedMs: ((buffer.length - trimmedBuffer.length) / buffer.sampleRate) * 1000
+    });
+
+    return loopReadyBuffer;
+  }
+
+  /**
+   * Trim silence from the beginning and end of an audio buffer
+   * @param {AudioBuffer} buffer - The audio buffer to trim
+   * @param {number} threshold - Amplitude threshold (0-1) below which is considered silence
+   * @returns {AudioBuffer} Trimmed audio buffer
+   */
+  trimSilence(buffer, threshold = 0.01) {
+    const context = this.getAudioContext();
+    const sampleRate = buffer.sampleRate;
+    const numChannels = buffer.numberOfChannels;
+
+    // Find the first sample above threshold (check all channels)
+    let startSample = 0;
+    let endSample = buffer.length - 1;
+
+    // Scan from start
+    outerStart: for (let i = 0; i < buffer.length; i++) {
+      for (let ch = 0; ch < numChannels; ch++) {
+        if (Math.abs(buffer.getChannelData(ch)[i]) > threshold) {
+          startSample = i;
+          break outerStart;
+        }
+      }
+    }
+
+    // Scan from end
+    outerEnd: for (let i = buffer.length - 1; i >= startSample; i--) {
+      for (let ch = 0; ch < numChannels; ch++) {
+        if (Math.abs(buffer.getChannelData(ch)[i]) > threshold) {
+          endSample = i;
+          break outerEnd;
+        }
+      }
+    }
+
+    // Add a small margin (5ms) to avoid cutting off attack/release
+    const marginSamples = Math.floor(0.005 * sampleRate);
+    startSample = Math.max(0, startSample - marginSamples);
+    endSample = Math.min(buffer.length - 1, endSample + marginSamples);
+
+    const newLength = endSample - startSample + 1;
+
+    // If no significant trimming, return original
+    if (newLength >= buffer.length * 0.99) {
+      // eslint-disable-next-line no-console
+      console.log('  → No significant silence detected, skipping trim');
+      return buffer;
+    }
+
+    // Create trimmed buffer
+    const trimmed = context.createBuffer(numChannels, newLength, sampleRate);
+
+    for (let ch = 0; ch < numChannels; ch++) {
+      const sourceData = buffer.getChannelData(ch);
+      const destData = trimmed.getChannelData(ch);
+      for (let i = 0; i < newLength; i++) {
+        destData[i] = sourceData[startSample + i];
+      }
+    }
+
+    // eslint-disable-next-line no-console
+    console.log('  → Trimmed silence:', {
+      startTrimmedMs: (startSample / sampleRate) * 1000,
+      endTrimmedMs: ((buffer.length - 1 - endSample) / sampleRate) * 1000
+    });
+
+    return trimmed;
+  }
+
+  /**
+   * Apply a crossfade at the loop point to create seamless looping.
+   * This overlaps the end of the audio with the beginning using a crossfade.
+   * @param {AudioBuffer} buffer - The audio buffer
+   * @param {number} crossfadeDurationMs - Duration of crossfade in milliseconds
+   * @returns {AudioBuffer} Buffer with crossfade applied at loop point
+   */
+  applyLoopCrossfade(buffer, crossfadeDurationMs = 100) {
+    const context = this.getAudioContext();
+    const sampleRate = buffer.sampleRate;
+    const numChannels = buffer.numberOfChannels;
+
+    // Calculate crossfade samples (cap at 10% of buffer length)
+    const maxCrossfadeSamples = Math.floor(buffer.length * 0.1);
+    let crossfadeSamples = Math.floor((crossfadeDurationMs / 1000) * sampleRate);
+    crossfadeSamples = Math.min(crossfadeSamples, maxCrossfadeSamples);
+
+    if (crossfadeSamples < 10) {
+      // eslint-disable-next-line no-console
+      console.log('  → Buffer too short for crossfade, skipping');
+      return buffer;
+    }
+
+    // New length is original minus the crossfade overlap
+    const newLength = buffer.length - crossfadeSamples;
+
+    const result = context.createBuffer(numChannels, newLength, sampleRate);
+
+    for (let ch = 0; ch < numChannels; ch++) {
+      const sourceData = buffer.getChannelData(ch);
+      const destData = result.getChannelData(ch);
+
+      // Copy the main body (excluding the crossfade region at the end)
+      for (let i = 0; i < newLength - crossfadeSamples; i++) {
+        destData[i] = sourceData[i];
+      }
+
+      // Apply crossfade: blend end of audio with beginning
+      for (let i = 0; i < crossfadeSamples; i++) {
+        const fadeOutPos = newLength - crossfadeSamples + i; // Position in dest
+        const fadeOutSourcePos = buffer.length - crossfadeSamples + i; // End region of source
+        const fadeInSourcePos = i; // Beginning of source
+
+        // Equal-power crossfade curve
+        const t = i / crossfadeSamples;
+        const fadeOutGain = Math.cos(t * Math.PI * 0.5);
+        const fadeInGain = Math.sin(t * Math.PI * 0.5);
+
+        destData[fadeOutPos] = 
+          sourceData[fadeOutSourcePos] * fadeOutGain + 
+          sourceData[fadeInSourcePos] * fadeInGain;
+      }
+    }
+
+    // eslint-disable-next-line no-console
+    console.log('  → Applied loop crossfade:', {
+      crossfadeDurationMs: (crossfadeSamples / sampleRate) * 1000,
+      originalLength: buffer.length,
+      newLength: newLength
+    });
+
+    return result;
+  }
+
   /**
    * Clean up resources
    */

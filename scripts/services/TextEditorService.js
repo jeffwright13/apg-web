@@ -140,10 +140,13 @@ Thank you for your cooperation.;2`
    */
   getStats(text) {
     if (!text) {
-      return { lines: 0, characters: 0, words: 0 };
+      return { lines: 1, characters: 0, words: 0 };
     }
     
-    const lines = text.split('\n').length;
+    // Trim trailing empty lines for accurate line count
+    // but keep at least 1 line for the current cursor position
+    const trimmedText = text.replace(/\n+$/, '');
+    const lines = trimmedText ? trimmedText.split('\n').length : 1;
     const characters = text.length;
     const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
     
@@ -154,10 +157,11 @@ Thank you for your cooperation.;2`
    * Validate APG syntax
    * Format: text;seconds
    * @param {string} text - Text to validate
-   * @returns {{valid: boolean, errors: Array<string>}}
+   * @returns {{valid: boolean, errors: Array<string>, warnings: Array<string>}}
    */
   validateSyntax(text) {
     const errors = [];
+    const warnings = [];
     const lines = text.split('\n');
     
     lines.forEach((line, index) => {
@@ -184,14 +188,16 @@ Thank you for your cooperation.;2`
         if (durationNum < 0) {
           errors.push(`Line ${lineNum}: Duration cannot be negative`);
         } else if (durationNum > 60) {
-          errors.push(`Line ${lineNum}: Duration seems unusually long (${durationNum}s). Consider breaking into smaller segments.`);
+          // Long durations are warnings, not errors - they're valid syntax
+          warnings.push(`Line ${lineNum}: Duration is quite long (${durationNum}s). This is valid but consider if it's intentional.`);
         }
       }
     });
     
     return {
       valid: errors.length === 0,
-      errors
+      errors,
+      warnings
     };
   }
 

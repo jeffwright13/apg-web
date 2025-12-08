@@ -168,19 +168,14 @@
 
                 <!-- Editor -->
                 <div class="editor-wrapper">
-                  <div class="editor-main">
-                    <div id="line-numbers" class="line-numbers">
-                      <div class="line-number">1</div>
-                    </div>
-                    <textarea
-                      id="apg-editor"
-                      placeholder="Type your APG program here...&#10;&#10;Format: text;seconds (duration optional, defaults to 0)&#10;&#10;Example:&#10;Hello world;2&#10;Welcome to APG;1.5&#10;Goodbye&#10;Short pause;0"
-                      spellcheck="false"
-                      autocomplete="off"
-                      autocorrect="off"
-                      autocapitalize="off"
-                    ></textarea>
-                  </div>
+                  <textarea
+                    id="apg-editor"
+                    placeholder="Type your APG program here...&#10;&#10;Format: text;seconds (duration optional, defaults to 0)&#10;&#10;Example:&#10;Hello world;2&#10;Welcome to APG;1.5&#10;Goodbye&#10;Short pause;0"
+                    spellcheck="false"
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                  ></textarea>
                   <div class="editor-stats">
                     <div class="editor-stats-item">
                       <span>Lines: <strong id="stat-lines">0</strong></span>
@@ -271,6 +266,7 @@
                   id="save-openai-key-btn"
                   class="secondary"
                   style="flex: 0 0 auto"
+                  disabled
                 >
                   Save
                 </button>
@@ -341,6 +337,7 @@
                   id="save-api-key-btn"
                   class="secondary"
                   style="flex: 0 0 auto"
+                  disabled
                 >
                   Save
                 </button>
@@ -611,6 +608,60 @@
                   Duration of fade-out effect at the end
                 </small>
               </label>
+
+              <!-- Seamless Loop Preparation -->
+              <fieldset style="margin-top: 1rem; padding: 1rem; border: 1px solid var(--muted-border-color); border-radius: 0.5rem;">
+                <legend style="font-weight: 600; padding: 0 0.5rem;">Loop Preparation</legend>
+                <label for="prepare-loop" style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer;">
+                  <input
+                    type="checkbox"
+                    id="prepare-loop"
+                    name="prepare-loop"
+                    style="margin-top: 0.25rem;"
+                  />
+                  <span>
+                    <strong>Prepare for seamless looping</strong>
+                    <small style="color: var(--muted-color); display: block; margin-top: 0.25rem;">
+                      Trims silence from start/end and applies a crossfade at the loop point. 
+                      Recommended when your program is longer than the background audio.
+                    </small>
+                  </span>
+                </label>
+                
+                <div id="loop-options" style="display: none; margin-top: 1rem; padding-left: 1.5rem;">
+                  <label for="silence-threshold">
+                    Silence threshold (dB)
+                    <input
+                      type="number"
+                      id="silence-threshold"
+                      name="silence-threshold"
+                      value="-40"
+                      min="-60"
+                      max="-20"
+                      step="1"
+                    />
+                    <small style="color: var(--muted-color);">
+                      Audio below this level is considered silence. Lower = more sensitive.
+                    </small>
+                  </label>
+                  
+                  <label for="crossfade-duration">
+                    Crossfade duration (ms)
+                    <input
+                      type="number"
+                      id="crossfade-duration"
+                      name="crossfade-duration"
+                      value="100"
+                      min="10"
+                      max="500"
+                      step="10"
+                    />
+                    <small style="color: var(--muted-color);">
+                      Duration of the crossfade blend at the loop point. Longer = smoother but may blur transients.
+                    </small>
+                  </label>
+                </div>
+              </fieldset>
             </details>
             </div>
           </details>
@@ -621,7 +672,7 @@
       <!-- GENERATE & PREVIEW Section -->
       <section id="generate-preview-section">
         <article>
-          <header><h2>Generate & Preview</h2></header>
+          <header><h2>Generate | Preview | Save</h2></header>
           <div style="display: flex; gap: 0.5rem; align-items: stretch;">
             <button type="submit" form="apg-form" id="generate-btn" style="flex: 1;">
               Generate Audio Program

@@ -86,40 +86,6 @@ footer {
   overflow: hidden;
 }
 
-.editor-main {
-  display: flex;
-  min-height: 300px;
-  max-height: 500px;
-  overflow: auto;
-}
-
-.line-numbers {
-  flex-shrink: 0;
-  padding: 0.75rem 0.5rem;
-  background: var(--code-background-color);
-  color: var(--muted-color);
-  text-align: right;
-  user-select: none;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  border-right: 1px solid var(--muted-border-color);
-  min-width: 3rem;
-}
-
-.line-number {
-  padding: 0 0.5rem;
-}
-
-.editor-content {
-  flex: 1;
-  padding: 0.75rem;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  overflow: auto;
-}
-
 #apg-editor {
   width: 100%;
   min-height: 300px;
@@ -131,11 +97,12 @@ footer {
   border: none;
   background: transparent;
   color: var(--color);
-  resize: vertical;
+  resize: none;
   outline: none;
   white-space: pre;
   overflow-wrap: normal;
-  overflow-x: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 #apg-editor:focus {
@@ -258,16 +225,9 @@ footer {
     width: 100%;
   }
   
-  .editor-main {
-    max-height: 400px;
-  }
-  
   #apg-editor {
     font-size: 0.8125rem;
-  }
-  
-  .line-numbers {
-    font-size: 0.8125rem;
+    max-height: 400px;
   }
 }
 
