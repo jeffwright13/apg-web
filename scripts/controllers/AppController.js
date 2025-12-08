@@ -545,13 +545,92 @@ export class AppController {
     const html = document.documentElement;
 
     if (theme === 'auto') {
-      // Remove explicit theme, let system preference decide
-      html.removeAttribute('data-theme');
+      // Follow system/browser preference
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const prefersDark = mediaQuery.matches;
+      html.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else if (theme === 'daynight') {
+      // Calculate based on actual sunrise/sunset times
+      this.applyDayNightTheme();
     } else if (theme === 'light') {
       html.setAttribute('data-theme', 'light');
     } else if (theme === 'dark') {
       html.setAttribute('data-theme', 'dark');
     }
+  }
+
+  applyDayNightTheme() {
+    const html = document.documentElement;
+    
+    // Try to get user's location for accurate sunrise/sunset
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const isDaytime = this.isDaytime(latitude, longitude);
+          html.setAttribute('data-theme', isDaytime ? 'light' : 'dark');
+        },
+        () => {
+          // Geolocation denied/failed - use simple time-based fallback (6am-6pm)
+          const hour = new Date().getHours();
+          const isDaytime = hour >= 6 && hour < 18;
+          html.setAttribute('data-theme', isDaytime ? 'light' : 'dark');
+        }
+      );
+    } else {
+      // No geolocation - use simple time-based fallback
+      const hour = new Date().getHours();
+      const isDaytime = hour >= 6 && hour < 18;
+      html.setAttribute('data-theme', isDaytime ? 'light' : 'dark');
+    }
+  }
+
+  // Calculate if it's currently daytime based on sunrise/sunset
+  // Uses simplified solar calculation (accurate to within a few minutes)
+  isDaytime(lat, lng) {
+    const now = new Date();
+    const { sunrise, sunset } = this.getSunTimes(now, lat, lng);
+    return now >= sunrise && now < sunset;
+  }
+
+  // Simplified sunrise/sunset calculation
+  // Based on NOAA solar calculations
+  getSunTimes(date, lat, lng) {
+    const rad = Math.PI / 180;
+    const dayOfYear = this.getDayOfYear(date);
+    
+    // Solar declination
+    const declination = -23.45 * Math.cos(rad * (360 / 365) * (dayOfYear + 10));
+    
+    // Hour angle for sunrise/sunset (when sun is at horizon)
+    const cosHourAngle = -Math.tan(lat * rad) * Math.tan(declination * rad);
+    
+    // Clamp for polar regions
+    const clampedCos = Math.max(-1, Math.min(1, cosHourAngle));
+    const hourAngle = Math.acos(clampedCos) / rad;
+    
+    // Solar noon (in hours, UTC)
+    const solarNoon = 12 - (lng / 15);
+    
+    // Sunrise and sunset times (in hours, UTC)
+    const sunriseHour = solarNoon - (hourAngle / 15);
+    const sunsetHour = solarNoon + (hourAngle / 15);
+    
+    // Convert to local Date objects
+    const sunrise = new Date(date);
+    sunrise.setUTCHours(Math.floor(sunriseHour), (sunriseHour % 1) * 60, 0, 0);
+    
+    const sunset = new Date(date);
+    sunset.setUTCHours(Math.floor(sunsetHour), (sunsetHour % 1) * 60, 0, 0);
+    
+    return { sunrise, sunset };
+  }
+
+  getDayOfYear(date) {
+    const start = new Date(date.getFullYear(), 0, 0);
+    const diff = date - start;
+    const oneDay = 1000 * 60 * 60 * 24;
+    return Math.floor(diff / oneDay);
   }
 
   setupExportFormatSelector() {
