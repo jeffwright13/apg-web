@@ -1,0 +1,4 @@
+IDEAS FOR IMPROVEMENT
+- Reloading a previosuly saved session should reload the same UI state (e.g. loading the cached text into inline editor; TTS and audio settings; etc.)
+- Add ability to export/import session state as JSON for backup/restore across devices.
+- Allow text popups/display-panel (persistent till next snippet goes active), so that user can look to see current instruction/move if they miss the audio cue.

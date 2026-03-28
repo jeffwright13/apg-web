@@ -1,6 +1,6 @@
 /**
  * OpenAI Text-to-Speech Adapter
- * Implements TTS-1 and TTS-1-HD models with 6 preset voices
+ * Implements TTS-1, TTS-1-HD, and GPT-4o-Mini-TTS models with 13 voices
  */
 
 import { TTSEngineAdapter } from './TTSEngineAdapter.js';
@@ -14,42 +14,21 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
     // OpenAI TTS capabilities
     this.defaultCapabilities = {
       voices: [
-        {
-          id: 'alloy',
-          name: 'Alloy',
-          description: 'Neutral and balanced',
-          gender: 'neutral',
-        },
-        {
-          id: 'echo',
-          name: 'Echo',
-          description: 'Male voice',
-          gender: 'male',
-        },
-        {
-          id: 'fable',
-          name: 'Fable',
-          description: 'British male voice',
-          gender: 'male',
-        },
-        {
-          id: 'onyx',
-          name: 'Onyx',
-          description: 'Deep male voice',
-          gender: 'male',
-        },
-        {
-          id: 'nova',
-          name: 'Nova',
-          description: 'Female voice, warm and friendly',
-          gender: 'female',
-        },
-        {
-          id: 'shimmer',
-          name: 'Shimmer',
-          description: 'Female voice, soft and gentle',
-          gender: 'female',
-        },
+        // Compatible with all models
+        { id: 'alloy',   name: 'Alloy',   description: 'Neutral and balanced',        gender: 'neutral' },
+        { id: 'ash',     name: 'Ash',     description: 'Neutral voice',               gender: 'neutral' },
+        { id: 'coral',   name: 'Coral',   description: 'Female voice',                gender: 'female'  },
+        { id: 'echo',    name: 'Echo',    description: 'Male voice',                  gender: 'male'    },
+        { id: 'fable',   name: 'Fable',   description: 'British male voice',          gender: 'male'    },
+        { id: 'nova',    name: 'Nova',    description: 'Female voice, warm and friendly', gender: 'female' },
+        { id: 'onyx',    name: 'Onyx',   description: 'Deep male voice',             gender: 'male'    },
+        { id: 'sage',    name: 'Sage',    description: 'Female voice',                gender: 'female'  },
+        { id: 'shimmer', name: 'Shimmer', description: 'Female voice, soft and gentle', gender: 'female' },
+        // Requires gpt-4o-mini-tts
+        { id: 'ballad',  name: 'Ballad',  description: 'Expressive voice',            gender: 'neutral', requiresModel: 'gpt-4o-mini-tts' },
+        { id: 'cedar',   name: 'Cedar',   description: 'Recommended for best quality', gender: 'neutral', requiresModel: 'gpt-4o-mini-tts' },
+        { id: 'marin',   name: 'Marin',   description: 'Recommended for best quality', gender: 'female',  requiresModel: 'gpt-4o-mini-tts' },
+        { id: 'verse',   name: 'Verse',   description: 'Expressive voice',            gender: 'neutral', requiresModel: 'gpt-4o-mini-tts' },
       ],
       models: [
         {
@@ -63,6 +42,12 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
           name: 'TTS-1-HD',
           description: 'High definition quality',
           pricing: '$30.00 per 1M characters',
+        },
+        {
+          id: 'gpt-4o-mini-tts',
+          name: 'GPT-4o Mini TTS',
+          description: 'Newest model, required for ballad/cedar/marin/verse voices',
+          pricing: 'See OpenAI pricing',
         },
       ],
       audioFormats: ['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm'],
@@ -137,9 +122,9 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
 
     // Build request body
     const requestBody = {
-      model: options.model || 'tts-1', // tts-1 or tts-1-hd
+      model: options.model || 'tts-1',
       input: text,
-      voice: options.voice || 'nova', // alloy, echo, fable, onyx, nova, shimmer
+      voice: options.voice || 'nova',
       response_format: options.format || 'wav', // mp3, opus, aac, flac, wav, pcm
       speed: options.speed || 1.0, // 0.25 to 4.0
     };

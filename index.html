@@ -276,12 +276,23 @@
               <label for="openai-voice" style="font-weight: 600;">
                 Voice
                 <select id="openai-voice" name="openai-voice">
-                  <option value="nova">Nova (Female - warm and friendly)</option>
-                  <option value="shimmer">Shimmer (Female - soft and gentle)</option>
-                  <option value="alloy">Alloy (Neutral - balanced)</option>
-                  <option value="echo">Echo (Male)</option>
-                  <option value="fable">Fable (Male - British)</option>
-                  <option value="onyx">Onyx (Male - deep)</option>
+                  <optgroup label="All models">
+                    <option value="nova">Nova (Female - warm and friendly)</option>
+                    <option value="shimmer">Shimmer (Female - soft and gentle)</option>
+                    <option value="coral">Coral (Female)</option>
+                    <option value="sage">Sage (Female)</option>
+                    <option value="alloy">Alloy (Neutral - balanced)</option>
+                    <option value="ash">Ash (Neutral)</option>
+                    <option value="echo">Echo (Male)</option>
+                    <option value="fable">Fable (Male - British)</option>
+                    <option value="onyx">Onyx (Male - deep)</option>
+                  </optgroup>
+                  <optgroup label="GPT-4o Mini TTS only">
+                    <option value="ballad">Ballad</option>
+                    <option value="cedar">Cedar (recommended)</option>
+                    <option value="marin">Marin (recommended)</option>
+                    <option value="verse">Verse</option>
+                  </optgroup>
                 </select>
               </label>
 
@@ -293,6 +304,7 @@
                   <select id="openai-model" name="openai-model">
                     <option value="tts-1">Standard ($15/1M chars)</option>
                     <option value="tts-1-hd">HD Quality ($30/1M chars)</option>
+                    <option value="gpt-4o-mini-tts">GPT-4o Mini TTS (newest)</option>
                   </select>
                 </label>
 

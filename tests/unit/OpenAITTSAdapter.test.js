@@ -101,8 +101,8 @@ describe('OpenAITTSAdapter', () => {
 
     test('has default capabilities', () => {
       expect(adapter.defaultCapabilities).toBeDefined();
-      expect(adapter.defaultCapabilities.voices).toHaveLength(6);
-      expect(adapter.defaultCapabilities.models).toHaveLength(2);
+      expect(adapter.defaultCapabilities.voices).toHaveLength(13);
+      expect(adapter.defaultCapabilities.models).toHaveLength(3);
     });
   });
 
@@ -142,26 +142,43 @@ describe('OpenAITTSAdapter', () => {
       expect(capabilities.parameters).toBeDefined();
     });
 
-    test('includes all 6 voices', async () => {
+    test('includes all 13 voices', async () => {
       const capabilities = await adapter.getCapabilities();
 
-      expect(capabilities.voices).toHaveLength(6);
+      expect(capabilities.voices).toHaveLength(13);
       const voiceIds = capabilities.voices.map((v) => v.id);
+      // All-model voices
       expect(voiceIds).toContain('alloy');
+      expect(voiceIds).toContain('ash');
+      expect(voiceIds).toContain('coral');
       expect(voiceIds).toContain('echo');
       expect(voiceIds).toContain('fable');
-      expect(voiceIds).toContain('onyx');
       expect(voiceIds).toContain('nova');
+      expect(voiceIds).toContain('onyx');
+      expect(voiceIds).toContain('sage');
       expect(voiceIds).toContain('shimmer');
+      // gpt-4o-mini-tts only voices
+      expect(voiceIds).toContain('ballad');
+      expect(voiceIds).toContain('cedar');
+      expect(voiceIds).toContain('marin');
+      expect(voiceIds).toContain('verse');
     });
 
-    test('includes both TTS models', async () => {
+    test('marks gpt-4o-mini-tts-only voices with requiresModel', async () => {
+      const capabilities = await adapter.getCapabilities();
+      const restricted = capabilities.voices.filter(v => v.requiresModel);
+      expect(restricted.map(v => v.id).sort()).toEqual(['ballad', 'cedar', 'marin', 'verse']);
+      restricted.forEach(v => expect(v.requiresModel).toBe('gpt-4o-mini-tts'));
+    });
+
+    test('includes all 3 TTS models', async () => {
       const capabilities = await adapter.getCapabilities();
 
-      expect(capabilities.models).toHaveLength(2);
+      expect(capabilities.models).toHaveLength(3);
       const modelIds = capabilities.models.map((m) => m.id);
       expect(modelIds).toContain('tts-1');
       expect(modelIds).toContain('tts-1-hd');
+      expect(modelIds).toContain('gpt-4o-mini-tts');
     });
 
     test('includes audio formats', async () => {

@@ -430,6 +430,27 @@ export class AppController {
       this.updateEngineUI(ttsEngineSelect.value);
     }
 
+    // Auto-switch OpenAI model/voice based on compatibility
+    const openaiVoiceSelect = document.getElementById('openai-voice');
+    const openaiModelSelect = document.getElementById('openai-model');
+    const gpt4oOnlyVoices = new Set(['ballad', 'cedar', 'marin', 'verse']);
+
+    if (openaiVoiceSelect && openaiModelSelect) {
+      openaiVoiceSelect.addEventListener('change', () => {
+        if (gpt4oOnlyVoices.has(openaiVoiceSelect.value) &&
+            openaiModelSelect.value !== 'gpt-4o-mini-tts') {
+          openaiModelSelect.value = 'gpt-4o-mini-tts';
+        }
+      });
+
+      openaiModelSelect.addEventListener('change', () => {
+        if (openaiModelSelect.value !== 'gpt-4o-mini-tts' &&
+            gpt4oOnlyVoices.has(openaiVoiceSelect.value)) {
+          openaiVoiceSelect.value = 'nova';
+        }
+      });
+    }
+
     // Save API key buttons and input change detection
     const saveApiKeyBtn = document.getElementById('save-api-key-btn');
     const googleApiKeyInput = document.getElementById('google-api-key');
