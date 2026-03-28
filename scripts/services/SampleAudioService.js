@@ -12,7 +12,8 @@ export class SampleAudioService {
       'meditation-yoga-relaxing-music.mp3',
       'sea_waves.mp3',
       'lunar_new_year.mp3',
-      'river_and_birds.mp3'
+      'river_and_birds.mp3',
+      'surf-waves-and-sea-foam.mp3'
     ];
     
     this.samples = [];

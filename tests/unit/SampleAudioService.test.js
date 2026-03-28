@@ -127,9 +127,9 @@ describe('SampleAudioService', () => {
       });
     });
 
-    test('should have 4 samples', () => {
+    test('should have 5 samples', () => {
       const samples = service.getSamples();
-      expect(samples).toHaveLength(4);
+      expect(samples).toHaveLength(5);
     });
 
     test('sample IDs should be unique', () => {
@@ -244,7 +244,7 @@ describe('SampleAudioService', () => {
       const availability = await service.checkSampleAvailability();
       
       expect(availability).toBeDefined();
-      expect(Object.keys(availability)).toHaveLength(4);
+      expect(Object.keys(availability)).toHaveLength(5);
       samples.forEach(sample => {
         expect(availability[sample.id]).toBe(true);
       });
