@@ -463,8 +463,12 @@ export class AppController {
 
     const saveOpenAIKeyBtn = document.getElementById('save-openai-key-btn');
     const openaiApiKeyInput = document.getElementById('openai-api-key');
+    const testOpenAIKeyBtn = document.getElementById('test-openai-key-btn');
     if (saveOpenAIKeyBtn) {
       saveOpenAIKeyBtn.addEventListener('click', () => this.handleSaveApiKey('openai'));
+    }
+    if (testOpenAIKeyBtn) {
+      testOpenAIKeyBtn.addEventListener('click', () => this.handleTestOpenAIApiKey());
     }
     if (openaiApiKeyInput) {
       openaiApiKeyInput.addEventListener('input', () => this.updateApiKeySaveButton('openai'));
@@ -734,6 +738,52 @@ export class AppController {
     // Hide audio mixing settings for Web Speech API (no export/mixing support)
     if (audioMixingSettings) {
       audioMixingSettings.style.display = isWebSpeech ? 'none' : 'block';
+    }
+  }
+
+  async handleTestOpenAIApiKey() {
+    const btn = document.getElementById('test-openai-key-btn');
+    const input = document.getElementById('openai-api-key');
+    const apiKey = input ? input.value.trim() : '';
+
+    btn.textContent = 'Testing...';
+    btn.disabled = true;
+
+    const reset = () => {
+      setTimeout(() => {
+        btn.textContent = 'Test';
+        btn.disabled = false;
+      }, 3000);
+    };
+
+    if (!apiKey) {
+      btn.textContent = '❌ No key entered';
+      reset();
+      return;
+    }
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/models', {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+
+      if (response.ok) {
+        btn.textContent = '✅ Valid';
+        btn.classList.remove('secondary');
+        btn.classList.add('contrast');
+        setTimeout(() => {
+          btn.textContent = 'Test';
+          btn.disabled = false;
+          btn.classList.remove('contrast');
+          btn.classList.add('secondary');
+        }, 3000);
+      } else {
+        btn.textContent = '❌ Invalid key';
+        reset();
+      }
+    } catch {
+      btn.textContent = '❌ Network error';
+      reset();
     }
   }
 
