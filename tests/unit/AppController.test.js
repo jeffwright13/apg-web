@@ -95,6 +95,17 @@ function mockErrorResponse(status = 401) {
   return { ok: false, status };
 }
 
+// ── Cache mock ────────────────────────────────────────────────────────────────
+
+function makeCacheMock({ hit = false } = {}) {
+  const setCalls = [];
+  return {
+    setCalls,
+    get: async () => hit ? new Blob([new ArrayBuffer(8)], { type: 'audio/mpeg' }) : null,
+    set: async (...args) => { setCalls.push(args); },
+  };
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('AppController', () => {
@@ -108,6 +119,8 @@ describe('AppController', () => {
     pendingTimeouts.length = 0;
     mockAudioInstance = undefined;
     controller = new AppController();
+    // Replace real cache service with a controllable mock
+    controller.cacheService = makeCacheMock();
   });
 
   afterEach(() => {
@@ -321,6 +334,42 @@ describe('AppController', () => {
       await controller.handlePreviewOpenAIVoice();
 
       expect(document.getElementById('preview-openai-voice-btn').textContent).toBe('❌ Network error');
+    });
+
+    test('stores result in cache after successful API call', async () => {
+      localStorage.setItem('openai-tts-api-key', 'sk-savedkey');
+      fetch.mockResolvedValueOnce(mockOkResponse());
+
+      await controller.handlePreviewOpenAIVoice();
+
+      expect(controller.cacheService.setCalls).toHaveLength(1);
+      const [text, engine, options, blob] = controller.cacheService.setCalls[0];
+      expect(text).toContain('Nova');
+      expect(engine).toBe('openai');
+      expect(options.voice).toBe('nova');
+      expect(options.model).toBe('tts-1');
+      expect(options.format).toBe('mp3');
+      expect(blob).toBeInstanceOf(Blob);
+    });
+
+    test('uses cached blob and skips fetch on cache hit', async () => {
+      localStorage.setItem('openai-tts-api-key', 'sk-savedkey');
+      controller.cacheService = makeCacheMock({ hit: true });
+
+      await controller.handlePreviewOpenAIVoice();
+
+      expect(fetch.mock.calls).toHaveLength(0);
+      expect(document.getElementById('preview-openai-voice-btn').textContent).toBe('🔊 Playing...');
+      expect(urlMock.createCalls).toHaveLength(1);
+    });
+
+    test('does not store to cache on cache hit', async () => {
+      localStorage.setItem('openai-tts-api-key', 'sk-savedkey');
+      controller.cacheService = makeCacheMock({ hit: true });
+
+      await controller.handlePreviewOpenAIVoice();
+
+      expect(controller.cacheService.setCalls).toHaveLength(0);
     });
   });
 });

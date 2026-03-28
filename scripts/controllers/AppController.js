@@ -818,23 +818,30 @@ export class AppController {
     try {
       const voiceName = voice.charAt(0).toUpperCase() + voice.slice(1);
       const previewText = `Hello! This is the ${voiceName} voice. I hope I sound just right for your project.`;
+      const cacheOptions = { voice, model, format: 'mp3' };
 
-      const response = await fetch('https://api.openai.com/v1/audio/speech', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ model, input: previewText, voice, response_format: 'mp3' }),
-      });
+      // Check cache first
+      let blob = await this.cacheService.get(previewText, 'openai', cacheOptions);
 
-      if (!response.ok) {
-        btn.textContent = '❌ API error';
-        reset();
-        return;
+      if (!blob) {
+        const response = await fetch('https://api.openai.com/v1/audio/speech', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ model, input: previewText, voice, response_format: 'mp3' }),
+        });
+
+        if (!response.ok) {
+          btn.textContent = '❌ API error';
+          reset();
+          return;
+        }
+
+        blob = new Blob([await response.arrayBuffer()], { type: 'audio/mpeg' });
+        await this.cacheService.set(previewText, 'openai', cacheOptions, blob);
       }
-
-      const blob = new Blob([await response.arrayBuffer()], { type: 'audio/mpeg' });
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       btn.textContent = '🔊 Playing...';
