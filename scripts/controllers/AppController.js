@@ -470,6 +470,10 @@ export class AppController {
     if (testOpenAIKeyBtn) {
       testOpenAIKeyBtn.addEventListener('click', () => this.handleTestOpenAIApiKey());
     }
+    const previewOpenAIVoiceBtn = document.getElementById('preview-openai-voice-btn');
+    if (previewOpenAIVoiceBtn) {
+      previewOpenAIVoiceBtn.addEventListener('click', () => this.handlePreviewOpenAIVoice());
+    }
     if (openaiApiKeyInput) {
       openaiApiKeyInput.addEventListener('input', () => this.updateApiKeySaveButton('openai'));
     }
@@ -781,6 +785,70 @@ export class AppController {
         btn.textContent = '❌ Invalid key';
         reset();
       }
+    } catch {
+      btn.textContent = '❌ Network error';
+      reset();
+    }
+  }
+
+  async handlePreviewOpenAIVoice() {
+    const btn = document.getElementById('preview-openai-voice-btn');
+    const voiceSelect = document.getElementById('openai-voice');
+    const modelSelect = document.getElementById('openai-model');
+    const voice = voiceSelect ? voiceSelect.value : 'nova';
+    const model = modelSelect ? modelSelect.value : 'tts-1';
+    const apiKey = localStorage.getItem('openai-tts-api-key') || '';
+
+    if (!apiKey) {
+      btn.textContent = '❌ No API key saved';
+      setTimeout(() => { btn.textContent = 'Test'; }, 3000);
+      return;
+    }
+
+    btn.textContent = '⏳ Generating...';
+    btn.disabled = true;
+
+    const reset = () => {
+      setTimeout(() => {
+        btn.textContent = 'Test';
+        btn.disabled = false;
+      }, 3000);
+    };
+
+    try {
+      const voiceName = voice.charAt(0).toUpperCase() + voice.slice(1);
+      const previewText = `Hello! This is the ${voiceName} voice. I hope I sound just right for your project.`;
+
+      const response = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model, input: previewText, voice, response_format: 'mp3' }),
+      });
+
+      if (!response.ok) {
+        btn.textContent = '❌ API error';
+        reset();
+        return;
+      }
+
+      const blob = new Blob([await response.arrayBuffer()], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      btn.textContent = '🔊 Playing...';
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        btn.textContent = 'Test';
+        btn.disabled = false;
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        btn.textContent = '❌ Playback error';
+        reset();
+      };
+      audio.play();
     } catch {
       btn.textContent = '❌ Network error';
       reset();

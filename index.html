@@ -281,9 +281,11 @@
                 </button>
               </div>
 
-              <label for="openai-voice" style="font-weight: 600;">
+              <label for="openai-voice" style="font-weight: 600; display: block; margin-bottom: 0.25rem;">
                 Voice
-                <select id="openai-voice" name="openai-voice">
+              </label>
+              <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <select id="openai-voice" name="openai-voice" style="flex: 1;">
                   <optgroup label="All models">
                     <option value="nova">Nova (Female - warm and friendly)</option>
                     <option value="shimmer">Shimmer (Female - soft and gentle)</option>
@@ -302,7 +304,15 @@
                     <option value="verse">Verse</option>
                   </optgroup>
                 </select>
-              </label>
+                <button
+                  type="button"
+                  id="preview-openai-voice-btn"
+                  class="secondary"
+                  style="flex: 0 0 auto;"
+                >
+                  Test
+                </button>
+              </div>
 
               <details>
                 <summary>Advanced TTS Settings</summary>
