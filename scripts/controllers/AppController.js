@@ -1803,10 +1803,8 @@ export class AppController {
     const sampleSelect = document.getElementById('sample-audio-select');
     const soundFileInput = document.getElementById('sound-file');
 
-    // Load available samples
-    await this.loadAndPopulateSamples();
-
-    // Audio source mode switcher
+    // Audio source mode switcher — attach listener before async sample load
+    // so user interaction works immediately regardless of fetch timing
     if (audioSourceSelect) {
       audioSourceSelect.addEventListener('change', (e) => {
         const mode = e.target.value;
@@ -1827,6 +1825,9 @@ export class AppController {
         }
       });
     }
+
+    // Load available samples after listener is wired up
+    await this.loadAndPopulateSamples();
 
     if (!sampleSelect) return;
 
