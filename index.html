@@ -19,6 +19,7 @@
     
     <!-- Offline Notice Styling (inline to work without CDN) -->
     <style>
+
       .offline-notice {
         display: none;
         position: fixed;
@@ -86,7 +87,8 @@
         </article>
       </section>
 
-      <!-- CREATE PHRASE FILE Section -->
+
+<!-- CREATE PHRASE FILE Section -->
       <section id="create-program-section">
         <article>
           <details open>
@@ -200,7 +202,8 @@
         </article>
       </section>
 
-      <!-- CONFIGURE TTS Section -->
+
+<!-- CONFIGURE TTS Section -->
       <section id="configure-voice-section">
         <article>
           <details open>
@@ -284,7 +287,7 @@
               <label for="openai-voice" style="font-weight: 600; display: block; margin-bottom: 0.25rem;">
                 Voice
               </label>
-              <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+              <div style="display: flex; gap: 0.5rem; margin-bottom: 0.4rem;">
                 <select id="openai-voice" name="openai-voice" style="flex: 1;">
                   <optgroup label="All models">
                     <option value="nova">Nova (Female - warm and friendly)</option>
@@ -310,35 +313,66 @@
                   class="secondary"
                   style="flex: 0 0 auto;"
                 >
-                  Test
+                  Preview
                 </button>
               </div>
 
-              <details>
-                <summary>Advanced TTS Settings</summary>
+              <label for="preview-volume" style="margin-bottom: 1rem;">
+                Preview volume: <span id="preview-volume-value">80%</span>
+                <input
+                  type="range"
+                  id="preview-volume"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value="0.8"
+                />
+              </label>
 
-                <label for="openai-model">
-                  Model Quality
-                  <select id="openai-model" name="openai-model">
-                    <option value="tts-1">Standard ($15/1M chars)</option>
-                    <option value="tts-1-hd">HD Quality ($30/1M chars)</option>
-                    <option value="gpt-4o-mini-tts">GPT-4o Mini TTS (newest)</option>
-                  </select>
+              <div id="openai-instructions-section" style="display: none; margin-bottom: 1rem;">
+                <label for="openai-voice-instructions" style="font-weight: 600; display: block; margin-bottom: 0.25rem;">
+                  Voice Instructions
                 </label>
+                <details style="margin-bottom: 0.4rem;">
+                  <summary style="font-size: 0.8em; color: var(--text-muted, #666); cursor: pointer;">GPT-4o Mini TTS only. Tone, pacing, and affect work well — accents are unreliable.</summary>
+                  <div style="font-size: 0.78em; color: var(--text-muted, #666); padding: 0.35rem 0 0.1rem 0.75rem; line-height: 1.5;">
+                    Freeform natural language — use any descriptive adjectives:<br>
+                    <strong>Voice Affect</strong> — emotional character (e.g. serene, energetic, nurturing)<br>
+                    <strong>Tone</strong> — relationship to listener (e.g. warm, authoritative, playful)<br>
+                    <strong>Pacing</strong> — delivery rhythm (e.g. slow and unhurried, brisk, measured)<br>
+                    <em>Example: "Voice Affect: serene. Tone: warm and nurturing. Pacing: slow and unhurried."</em>
+                  </div>
+                </details>
+                <textarea
+                  id="openai-voice-instructions"
+                  name="openai-voice-instructions"
+                  rows="2"
+                  style="width: 100%; box-sizing: border-box; resize: vertical;"
+                  placeholder="e.g. Speak in a calm, warm tone with slow, even pacing."
+                ></textarea>
+              </div>
 
-                <label for="openai-speed">
-                  Speed: <span id="openai-speed-value">1.0</span>
-                  <input
-                    type="range"
-                    id="openai-speed"
-                    name="openai-speed"
-                    min="0.25"
-                    max="4.0"
-                    step="0.25"
-                    value="1.0"
-                  />
-                </label>
-              </details>
+              <label for="openai-model" style="font-weight: 600;">
+                Model Quality
+                <select id="openai-model" name="openai-model">
+                  <option value="tts-1">TTS-1 — fast, cheaper, lower quality ($15/1M chars)</option>
+                  <option value="tts-1-hd">TTS-1-HD — slower, higher quality ($30/1M chars)</option>
+                  <option value="gpt-4o-mini-tts">GPT-4o Mini TTS — newest, supports instructions &amp; extra voices ($0.60/1M chars + $12/1M audio tokens)</option>
+                </select>
+              </label>
+
+              <label for="openai-speed">
+                Speed: <span id="openai-speed-value">1.0</span>
+                <input
+                  type="range"
+                  id="openai-speed"
+                  name="openai-speed"
+                  min="0.25"
+                  max="4.0"
+                  step="0.25"
+                  value="1.0"
+                />
+              </label>
             </div>
 
             <!-- Google Cloud TTS Settings -->
@@ -514,7 +548,8 @@
         </article>
       </section>
 
-      <!-- BACKGROUND AUDIO Section (Optional) -->
+
+<!-- BACKGROUND AUDIO Section (Optional) -->
       <section id="background-audio-section">
         <article>
           <details>
@@ -586,11 +621,11 @@
               </div>
 
               <!-- Audio Mixing Settings -->
-              <details id="audio-mixing-settings">
-                <summary>Audio Mixing Settings</summary>
-                <small style="color: var(--muted-color); display: block; margin-bottom: 1rem;">
-                  Post-processing settings for combining speech with background music
-                </small>
+              <div id="audio-mixing-settings">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+                  <label style="margin-bottom: 0; font-weight: 600;">Audio Mixing Settings</label>
+                  <small>Post-processing settings for combining speech with background music</small>
+                </div>
 
               <label for="attenuation">
                 Background volume adjustment (dB)
@@ -693,14 +728,15 @@
                   </label>
                 </div>
               </fieldset>
-            </details>
+              </div>
             </div>
           </details>
           </form>
         </article>
       </section>
 
-      <!-- GENERATE & PREVIEW Section -->
+
+<!-- GENERATE & PREVIEW Section -->
       <section id="generate-preview-section">
         <article>
           <header><h2>Generate | Preview | Save</h2></header>

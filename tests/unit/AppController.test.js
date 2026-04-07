@@ -39,6 +39,7 @@ class MockAudio {
   constructor() {
     this.onended = null;
     this.onerror = null;
+    this.volume = 1;
     mockAudioInstance = this;
   }
   play() { return Promise.resolve(); }
@@ -71,7 +72,7 @@ function setupDOM() {
   document.body.innerHTML = `
     <button id="test-openai-key-btn" class="secondary">Test</button>
     <input id="openai-api-key" type="password" value="" />
-    <button id="preview-openai-voice-btn" class="secondary">Test</button>
+    <button id="preview-openai-voice-btn" class="secondary">Preview</button>
     <select id="openai-voice">
       <option value="nova" selected>Nova</option>
       <option value="echo">Echo</option>
@@ -80,6 +81,11 @@ function setupDOM() {
       <option value="tts-1" selected>TTS-1</option>
       <option value="gpt-4o-mini-tts">GPT-4o</option>
     </select>
+    <div id="openai-instructions-section" style="display: none;">
+      <textarea id="openai-voice-instructions"></textarea>
+    </div>
+    <input id="preview-volume" type="range" min="0" max="1" step="0.05" value="0.8" />
+    <span id="preview-volume-value">80%</span>
   `;
 }
 
@@ -232,7 +238,7 @@ describe('AppController', () => {
       await controller.handlePreviewOpenAIVoice();
       flushTimeouts();
 
-      expect(document.getElementById('preview-openai-voice-btn').textContent).toBe('Test');
+      expect(document.getElementById('preview-openai-voice-btn').textContent).toBe('Preview');
     });
 
     test('calls /v1/audio/speech with correct params', async () => {
@@ -288,7 +294,7 @@ describe('AppController', () => {
       mockAudioInstance.onended();
 
       const btn = document.getElementById('preview-openai-voice-btn');
-      expect(btn.textContent).toBe('Test');
+      expect(btn.textContent).toBe('Preview');
       expect(btn.disabled).toBe(false);
       expect(urlMock.revokeCalls).toContain('blob:mock-url');
     });
@@ -314,7 +320,7 @@ describe('AppController', () => {
       flushTimeouts();
 
       const btn = document.getElementById('preview-openai-voice-btn');
-      expect(btn.textContent).toBe('Test');
+      expect(btn.textContent).toBe('Preview');
       expect(btn.disabled).toBe(false);
     });
 
@@ -370,6 +376,112 @@ describe('AppController', () => {
       await controller.handlePreviewOpenAIVoice();
 
       expect(controller.cacheService.setCalls).toHaveLength(0);
+    });
+
+    test('includes instructions in request body when model is gpt-4o-mini-tts', async () => {
+      localStorage.setItem('openai-tts-api-key', 'sk-savedkey');
+      document.getElementById('openai-model').value = 'gpt-4o-mini-tts';
+      document.getElementById('openai-voice-instructions').value = 'Speak slowly and calmly.';
+      fetch.mockResolvedValueOnce(mockOkResponse());
+
+      await controller.handlePreviewOpenAIVoice();
+
+      const body = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(body.instructions).toBe('Speak slowly and calmly.');
+    });
+
+    test('omits instructions from request body for non-gpt-4o-mini-tts models', async () => {
+      localStorage.setItem('openai-tts-api-key', 'sk-savedkey');
+      document.getElementById('openai-model').value = 'tts-1';
+      document.getElementById('openai-voice-instructions').value = 'Speak slowly and calmly.';
+      fetch.mockResolvedValueOnce(mockOkResponse());
+
+      await controller.handlePreviewOpenAIVoice();
+
+      const body = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(body.instructions).toBeUndefined();
+    });
+
+    test('omits instructions when textarea is empty', async () => {
+      localStorage.setItem('openai-tts-api-key', 'sk-savedkey');
+      document.getElementById('openai-model').value = 'gpt-4o-mini-tts';
+      document.getElementById('openai-voice-instructions').value = '';
+      fetch.mockResolvedValueOnce(mockOkResponse());
+
+      await controller.handlePreviewOpenAIVoice();
+
+      const body = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(body.instructions).toBeUndefined();
+    });
+
+    test('includes instructions in cache options when present', async () => {
+      localStorage.setItem('openai-tts-api-key', 'sk-savedkey');
+      document.getElementById('openai-model').value = 'gpt-4o-mini-tts';
+      document.getElementById('openai-voice-instructions').value = 'Calm tone.';
+      fetch.mockResolvedValueOnce(mockOkResponse());
+
+      await controller.handlePreviewOpenAIVoice();
+
+      const [, , options] = controller.cacheService.setCalls[0];
+      expect(options.instructions).toBe('Calm tone.');
+    });
+
+    test('excludes instructions from cache options when model is not gpt-4o-mini-tts', async () => {
+      localStorage.setItem('openai-tts-api-key', 'sk-savedkey');
+      document.getElementById('openai-model').value = 'tts-1';
+      document.getElementById('openai-voice-instructions').value = 'Calm tone.';
+      fetch.mockResolvedValueOnce(mockOkResponse());
+
+      await controller.handlePreviewOpenAIVoice();
+
+      const [, , options] = controller.cacheService.setCalls[0];
+      expect(options.instructions).toBeUndefined();
+    });
+
+    test('applies preview-volume slider value to audio volume', async () => {
+      localStorage.setItem('openai-tts-api-key', 'sk-savedkey');
+      document.getElementById('preview-volume').value = '0.5';
+      fetch.mockResolvedValueOnce(mockOkResponse());
+
+      await controller.handlePreviewOpenAIVoice();
+
+      expect(mockAudioInstance.volume).toBe(0.5);
+    });
+
+    test('defaults audio volume to 0.8 when slider is absent', async () => {
+      localStorage.setItem('openai-tts-api-key', 'sk-savedkey');
+      document.getElementById('preview-volume').remove();
+      fetch.mockResolvedValueOnce(mockOkResponse());
+
+      await controller.handlePreviewOpenAIVoice();
+
+      expect(mockAudioInstance.volume).toBe(0.8);
+    });
+  });
+
+  // ── setupSliderValueDisplays ──────────────────────────────────────────────
+
+  describe('setupSliderValueDisplays', () => {
+    test('formats preview-volume as percentage', () => {
+      const slider = document.getElementById('preview-volume');
+      const display = document.getElementById('preview-volume-value');
+
+      controller.setupSliderValueDisplays();
+      slider.value = '0.6';
+      slider.dispatchEvent(new Event('input'));
+
+      expect(display.textContent).toBe('60%');
+    });
+
+    test('rounds preview-volume percentage to nearest integer', () => {
+      const slider = document.getElementById('preview-volume');
+      const display = document.getElementById('preview-volume-value');
+
+      controller.setupSliderValueDisplays();
+      slider.value = '0.75';
+      slider.dispatchEvent(new Event('input'));
+
+      expect(display.textContent).toBe('75%');
     });
   });
 });

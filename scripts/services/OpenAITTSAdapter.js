@@ -129,12 +129,18 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
       speed: options.speed || 1.0, // 0.25 to 4.0
     };
 
+    // instructions is only supported by gpt-4o-mini-tts
+    if (requestBody.model === 'gpt-4o-mini-tts' && options.instructions) {
+      requestBody.instructions = options.instructions;
+    }
+
     // eslint-disable-next-line no-console
     console.log('🔄 Making OpenAI TTS API request:', {
       text: text.substring(0, 50),
       model: requestBody.model,
       voice: requestBody.voice,
-      format: requestBody.response_format
+      format: requestBody.response_format,
+      ...(requestBody.instructions && { instructions: requestBody.instructions }),
     });
 
     // Add small delay to avoid rate limiting (50ms)

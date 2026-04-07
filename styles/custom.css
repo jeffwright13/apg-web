@@ -308,17 +308,6 @@ button {
   opacity: 0.7;
 }
 
-/* Better visual hierarchy */
-#create-program-section {
-  border-bottom: 2px solid var(--muted-border-color);
-  padding-bottom: 1.5rem;
-}
-
-#configure-voice-section,
-#background-audio-section {
-  border-bottom: 1px solid var(--muted-border-color);
-  padding-bottom: 1.5rem;
-}
 
 /* Optional label styling */
 #background-audio-section summary h2 span {

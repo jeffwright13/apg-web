@@ -48,6 +48,8 @@ export class TTSCacheService {
     // Create a stable string representation of the options
     const optionsStr = JSON.stringify(options, Object.keys(options).sort());
     const combined = `${engine}:${text}:${optionsStr}`;
+    // eslint-disable-next-line no-console
+    if (options.instructions) console.log('🔑 Cache key input:', combined);
     
     // Simple hash function (good enough for cache keys)
     let hash = 0;

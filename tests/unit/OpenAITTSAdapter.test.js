@@ -390,6 +390,63 @@ describe('OpenAITTSAdapter', () => {
 
       expect(result.type).toBe('audio/mpeg');
     });
+
+    test('includes instructions when model is gpt-4o-mini-tts', async () => {
+      fetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      }));
+
+      await adapter.generateSpeech('Hello', {
+        model: 'gpt-4o-mini-tts',
+        instructions: 'Speak in a calm, warm tone.',
+      });
+
+      const body = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(body.instructions).toBe('Speak in a calm, warm tone.');
+    });
+
+    test('omits instructions for tts-1 model even if provided', async () => {
+      fetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      }));
+
+      await adapter.generateSpeech('Hello', {
+        model: 'tts-1',
+        instructions: 'Speak in a calm, warm tone.',
+      });
+
+      const body = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(body.instructions).toBeUndefined();
+    });
+
+    test('omits instructions for tts-1-hd model even if provided', async () => {
+      fetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      }));
+
+      await adapter.generateSpeech('Hello', {
+        model: 'tts-1-hd',
+        instructions: 'Speak in a calm, warm tone.',
+      });
+
+      const body = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(body.instructions).toBeUndefined();
+    });
+
+    test('omits instructions when not provided for gpt-4o-mini-tts', async () => {
+      fetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      }));
+
+      await adapter.generateSpeech('Hello', { model: 'gpt-4o-mini-tts' });
+
+      const body = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(body.instructions).toBeUndefined();
+    });
   });
 
   describe('getMimeType', () => {

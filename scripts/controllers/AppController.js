@@ -264,6 +264,13 @@ export class AppController {
         if (voiceSelect) voiceSelect.value = project.ttsOptions.voice || 'nova';
         if (modelSelect) modelSelect.value = project.ttsOptions.model || 'tts-1';
         if (speedSlider) speedSlider.value = project.ttsOptions.speed || 1.0;
+        const instructionsField = document.getElementById('openai-voice-instructions');
+        if (instructionsField) instructionsField.value = project.ttsOptions.instructions || '';
+        // Sync instructions section visibility with restored model
+        const instructionsSection = document.getElementById('openai-instructions-section');
+        if (instructionsSection && modelSelect) {
+          instructionsSection.style.display = modelSelect.value === 'gpt-4o-mini-tts' ? 'block' : 'none';
+        }
       } else if (project.ttsEngine === 'google-cloud') {
         const voiceSelect = document.getElementById('voice-name');
         const rateSlider = document.getElementById('speaking-rate');
@@ -328,12 +335,17 @@ export class AppController {
       // Get TTS options based on engine
       let ttsOptions = {};
       if (ttsEngine === 'openai') {
+        const model = formData.get('openai-model') || 'tts-1';
         ttsOptions = {
           voice: formData.get('openai-voice') || 'nova',
-          model: formData.get('openai-model') || 'tts-1',
+          model,
           speed: parseFloat(formData.get('openai-speed')) || 1.0,
           format: 'wav',
         };
+        if (model === 'gpt-4o-mini-tts') {
+          const instructions = formData.get('openai-voice-instructions') || '';
+          if (instructions.trim()) ttsOptions.instructions = instructions.trim();
+        }
       } else if (ttsEngine === 'google-cloud') {
         ttsOptions = {
           voiceName: formData.get('voice-name') || 'en-US-Neural2-F',
@@ -435,11 +447,20 @@ export class AppController {
     const openaiModelSelect = document.getElementById('openai-model');
     const gpt4oOnlyVoices = new Set(['ballad', 'cedar', 'marin', 'verse']);
 
+    const openaiInstructionsSection = document.getElementById('openai-instructions-section');
+    const updateInstructionsVisibility = () => {
+      if (openaiInstructionsSection) {
+        openaiInstructionsSection.style.display =
+          openaiModelSelect && openaiModelSelect.value === 'gpt-4o-mini-tts' ? 'block' : 'none';
+      }
+    };
+
     if (openaiVoiceSelect && openaiModelSelect) {
       openaiVoiceSelect.addEventListener('change', () => {
         if (gpt4oOnlyVoices.has(openaiVoiceSelect.value) &&
             openaiModelSelect.value !== 'gpt-4o-mini-tts') {
           openaiModelSelect.value = 'gpt-4o-mini-tts';
+          updateInstructionsVisibility();
         }
       });
 
@@ -448,7 +469,11 @@ export class AppController {
             gpt4oOnlyVoices.has(openaiVoiceSelect.value)) {
           openaiVoiceSelect.value = 'nova';
         }
+        updateInstructionsVisibility();
       });
+
+      // Set initial visibility
+      updateInstructionsVisibility();
     }
 
     // Save API key buttons and input change detection
@@ -523,6 +548,7 @@ export class AppController {
       { id: 'pitch', valueId: 'pitch-value' },
       { id: 'volume-gain', valueId: 'volume-gain-value' },
       { id: 'openai-speed', valueId: 'openai-speed-value' },
+      { id: 'preview-volume', valueId: 'preview-volume-value', format: v => `${Math.round(v * 100)}%` },
       { id: 'web-speech-rate', valueId: 'web-speech-rate-value' },
       { id: 'web-speech-pitch', valueId: 'web-speech-pitch-value' },
       { id: 'web-speech-volume', valueId: 'web-speech-volume-value' },
@@ -531,12 +557,12 @@ export class AppController {
       { id: 'eq-high', valueId: 'eq-high-value' },
     ];
 
-    sliders.forEach(({ id, valueId }) => {
+    sliders.forEach(({ id, valueId, format }) => {
       const slider = document.getElementById(id);
       const valueDisplay = document.getElementById(valueId);
       if (slider && valueDisplay) {
         slider.addEventListener('input', (e) => {
-          valueDisplay.textContent = e.target.value;
+          valueDisplay.textContent = format ? format(e.target.value) : e.target.value;
         });
       }
     });
@@ -801,7 +827,7 @@ export class AppController {
 
     if (!apiKey) {
       btn.textContent = '❌ No API key saved';
-      setTimeout(() => { btn.textContent = 'Test'; }, 3000);
+      setTimeout(() => { btn.textContent = 'Preview'; }, 3000);
       return;
     }
 
@@ -810,7 +836,7 @@ export class AppController {
 
     const reset = () => {
       setTimeout(() => {
-        btn.textContent = 'Test';
+        btn.textContent = 'Preview';
         btn.disabled = false;
       }, 3000);
     };
@@ -818,19 +844,28 @@ export class AppController {
     try {
       const voiceName = voice.charAt(0).toUpperCase() + voice.slice(1);
       const previewText = `Hello! This is the ${voiceName} voice. I hope I sound just right for your project.`;
-      const cacheOptions = { voice, model, format: 'mp3' };
+
+      const instructionsEl = document.getElementById('openai-voice-instructions');
+      const instructions = model === 'gpt-4o-mini-tts' && instructionsEl
+        ? instructionsEl.value.trim()
+        : '';
+
+      const cacheOptions = { voice, model, format: 'mp3', ...(instructions && { instructions }) };
 
       // Check cache first
       let blob = await this.cacheService.get(previewText, 'openai', cacheOptions);
 
       if (!blob) {
+        const requestBody = { model, input: previewText, voice, response_format: 'mp3' };
+        if (instructions) requestBody.instructions = instructions;
+
         const response = await fetch('https://api.openai.com/v1/audio/speech', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ model, input: previewText, voice, response_format: 'mp3' }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
@@ -844,10 +879,12 @@ export class AppController {
       }
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
+      const volumeSlider = document.getElementById('preview-volume');
+      audio.volume = volumeSlider ? parseFloat(volumeSlider.value) : 0.8;
       btn.textContent = '🔊 Playing...';
       audio.onended = () => {
         URL.revokeObjectURL(url);
-        btn.textContent = 'Test';
+        btn.textContent = 'Preview';
         btn.disabled = false;
       };
       audio.onerror = () => {
@@ -1068,6 +1105,8 @@ export class AppController {
   async generateOrGetCachedSpeech(phrase, engine, ttsOptions) {
     // Get the text from the phrase object
     const text = phrase.phrase || phrase.text || '';
+    // eslint-disable-next-line no-console
+    if (ttsOptions.instructions) console.log('🗣️ Voice instructions active:', ttsOptions.instructions);
     
     try {
       // Try to get from cache first
@@ -1434,6 +1473,10 @@ export class AppController {
           speed,
           format: 'wav',
         };
+        if (model === 'gpt-4o-mini-tts') {
+          const instructions = formData.get('openai-voice-instructions') || '';
+          if (instructions.trim()) ttsOptions.instructions = instructions.trim();
+        }
 
         // Generate speech for each phrase
         this.updateProgress(20, 'Generating speech...');

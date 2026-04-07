@@ -252,6 +252,33 @@ describe('TTSCacheService', () => {
 
       expect(key).toMatch(/^tts_[a-z0-9]+$/);
     });
+
+    test('generates different keys when instructions differ', () => {
+      const keyWithout = cacheService.generateKey('Hello', 'openai', {
+        voice: 'marin',
+        model: 'gpt-4o-mini-tts',
+        format: 'wav',
+        speed: 1,
+      });
+      const keyWith = cacheService.generateKey('Hello', 'openai', {
+        voice: 'marin',
+        model: 'gpt-4o-mini-tts',
+        format: 'wav',
+        speed: 1,
+        instructions: 'Speak in a calm, warm tone.',
+      });
+      const keyDifferentInstructions = cacheService.generateKey('Hello', 'openai', {
+        voice: 'marin',
+        model: 'gpt-4o-mini-tts',
+        format: 'wav',
+        speed: 1,
+        instructions: 'Speak quickly and energetically.',
+      });
+
+      expect(keyWithout).not.toBe(keyWith);
+      expect(keyWith).not.toBe(keyDifferentInstructions);
+      expect(keyWithout).not.toBe(keyDifferentInstructions);
+    });
   });
 
   describe('get', () => {
