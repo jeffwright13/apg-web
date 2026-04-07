@@ -20,6 +20,7 @@ export class AppController {
     this.progressContainer = null;
     this.audioPlayer = null;
     this.downloadBtn = null;
+    this.currentDownloadUrl = null;
     this.playBtn = null;
     this.stopBtn = null;
 
@@ -144,12 +145,15 @@ export class AppController {
 
       if (!projectsList || !projectsDetails) return;
 
+      const projectsSection = document.getElementById('recent-projects-section');
       if (projects.length === 0) {
         projectsDetails.style.display = 'none';
+        if (projectsSection) projectsSection.style.display = 'none';
         return;
       }
 
       projectsDetails.style.display = 'block';
+      if (projectsSection) projectsSection.style.display = '';
       projectsList.innerHTML = '';
       
       // Update count badge
@@ -524,22 +528,6 @@ export class AppController {
     // Setup EQ controls
     this.setupEQControls();
     
-    // Setup loop preparation checkbox toggle
-    this.setupLoopPreparationToggle();
-  }
-
-  /**
-   * Setup the loop preparation checkbox to show/hide advanced options
-   */
-  setupLoopPreparationToggle() {
-    const prepareLoopCheckbox = document.getElementById('prepare-loop');
-    const loopOptions = document.getElementById('loop-options');
-    
-    if (prepareLoopCheckbox && loopOptions) {
-      prepareLoopCheckbox.addEventListener('change', (e) => {
-        loopOptions.style.display = e.target.checked ? 'block' : 'none';
-      });
-    }
   }
 
   setupSliderValueDisplays() {
@@ -1298,20 +1286,9 @@ export class AppController {
           this.updateProgress(90, 'Mixing with background sound...');
           const soundArrayBuffer =
             await this.fileService.readAudioFile(soundFile);
-          let backgroundBuffer =
+          const backgroundBuffer =
             await this.audioService.decodeAudioData(soundArrayBuffer);
 
-          // Prepare background for seamless looping if requested
-          const prepareLoop = formData.get('prepare-loop') === 'on';
-          if (prepareLoop) {
-            this.updateProgress(91, 'Preparing background for seamless looping...');
-            const silenceThresholdDb = parseInt(formData.get('silence-threshold')) || -40;
-            const crossfadeDurationMs = parseInt(formData.get('crossfade-duration')) || 100;
-            backgroundBuffer = this.audioService.prepareForLooping(backgroundBuffer, {
-              silenceThresholdDb,
-              crossfadeDurationMs
-            });
-          }
 
           const attenuation = parseInt(formData.get('attenuation')) || 0;
           const fadeIn = parseInt(formData.get('fade-in')) || 3000;
@@ -1413,20 +1390,9 @@ export class AppController {
           this.updateProgress(90, 'Mixing with background sound...');
           const soundArrayBuffer =
             await this.fileService.readAudioFile(soundFile);
-          let backgroundBuffer =
+          const backgroundBuffer =
             await this.audioService.decodeAudioData(soundArrayBuffer);
 
-          // Prepare background for seamless looping if requested
-          const prepareLoop = formData.get('prepare-loop') === 'on';
-          if (prepareLoop) {
-            this.updateProgress(91, 'Preparing background for seamless looping...');
-            const silenceThresholdDb = parseInt(formData.get('silence-threshold')) || -40;
-            const crossfadeDurationMs = parseInt(formData.get('crossfade-duration')) || 100;
-            backgroundBuffer = this.audioService.prepareForLooping(backgroundBuffer, {
-              silenceThresholdDb,
-              crossfadeDurationMs
-            });
-          }
 
           const attenuation = parseInt(formData.get('attenuation')) || 0;
           const fadeIn = parseInt(formData.get('fade-in')) || 3000;
@@ -1527,20 +1493,9 @@ export class AppController {
           this.updateProgress(90, 'Mixing with background sound...');
           const soundArrayBuffer =
             await this.fileService.readAudioFile(soundFile);
-          let backgroundBuffer =
+          const backgroundBuffer =
             await this.audioService.decodeAudioData(soundArrayBuffer);
 
-          // Prepare background for seamless looping if requested
-          const prepareLoop = formData.get('prepare-loop') === 'on';
-          if (prepareLoop) {
-            this.updateProgress(91, 'Preparing background for seamless looping...');
-            const silenceThresholdDb = parseInt(formData.get('silence-threshold')) || -40;
-            const crossfadeDurationMs = parseInt(formData.get('crossfade-duration')) || 100;
-            backgroundBuffer = this.audioService.prepareForLooping(backgroundBuffer, {
-              silenceThresholdDb,
-              crossfadeDurationMs
-            });
-          }
 
           const attenuation = parseInt(formData.get('attenuation')) || 0;
           const fadeIn = parseInt(formData.get('fade-in')) || 3000;
@@ -1591,6 +1546,11 @@ export class AppController {
     this.progressContainer.style.display = 'none';
     document.getElementById('playback-controls').style.display = 'none';
     document.getElementById('download-controls').style.display = 'block';
+    this.downloadBtn.textContent = 'Generate and Download Audio File';
+    if (this.currentDownloadUrl) {
+      URL.revokeObjectURL(this.currentDownloadUrl);
+      this.currentDownloadUrl = null;
+    }
     
     // Initialize EQ when audio is loaded
     this.audioPlayer.addEventListener('loadedmetadata', () => {
@@ -1713,24 +1673,39 @@ export class AppController {
         filename = 'audio-program.wav';
       }
 
-      // Download the file
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Save the file — use Save As dialog if supported, otherwise auto-download
+      if (window.showSaveFilePicker) {
+        const mimeType = format === 'mp3' ? 'audio/mpeg' : 'audio/wav';
+        const ext = format === 'mp3' ? 'mp3' : 'wav';
+        const fileHandle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: 'Audio file', accept: { [mimeType]: [`.${ext}`] } }],
+        });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } else {
+        // Fallback: auto-download via blob URL
+        if (this.currentDownloadUrl) URL.revokeObjectURL(this.currentDownloadUrl);
+        this.currentDownloadUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = this.currentDownloadUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
 
-      // Hide progress and reset after a delay
+      // Confirm download, then relabel button
+      this.downloadBtn.textContent = '✓ Saved';
       setTimeout(() => {
+        this.downloadBtn.textContent = 'Generate and Download Audio File Again';
         this.progressContainer.style.display = 'none';
-      }, 1000);
+      }, 2000);
 
     } catch (error) {
-      if (error.message.includes('cancelled')) {
-        this.updateProgress(0, 'Encoding cancelled');
+      if (error.name === 'AbortError' || error.message.includes('cancelled')) {
+        this.updateProgress(0, 'Cancelled');
       } else {
         this.showError(error.message);
       }
@@ -1802,6 +1777,12 @@ export class AppController {
       if (initialMode === 'editor') {
         fileUploadMode.style.display = 'none';
         textEditorMode.style.display = 'block';
+        // Load last saved content into editor on startup
+        const saved = this.editorService.loadFromLocalStorage();
+        if (saved && !editor.value) {
+          editor.value = saved;
+          this.updateEditorUI();
+        }
       } else {
         fileUploadMode.style.display = 'block';
         textEditorMode.style.display = 'none';

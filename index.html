@@ -70,7 +70,7 @@
       </header>
 
       <!-- RECENT PROJECTS Section -->
-      <section id="recent-projects-section">
+      <section id="recent-projects-section" style="display: none;">
         <article>
           <details id="recent-projects-details" style="display: none;">
             <summary style="cursor: pointer;">
@@ -92,7 +92,7 @@
 <!-- CREATE PHRASE FILE Section -->
       <section id="create-program-section">
         <article>
-          <details open>
+          <details>
             <summary style="cursor: pointer;">
               <h2 style="margin: 0; display: inline;">Create Phrase File</h2>
             </summary>
@@ -107,8 +107,8 @@
               <small>How you'll provide your program text</small>
             </div>
             <select id="input-mode" name="input-mode" style="margin-bottom: 1.5rem;">
-              <option value="file" selected>📁 Upload File</option>
-              <option value="editor">✏️ Text Editor</option>
+              <option value="file">📁 Upload File</option>
+              <option value="editor" selected>✏️ Text Editor</option>
             </select>
 
             <!-- File Upload Mode -->
@@ -207,7 +207,7 @@
 <!-- CONFIGURE TTS Section -->
       <section id="configure-voice-section">
         <article>
-          <details open>
+          <details>
             <summary style="cursor: pointer;">
               <h2 style="margin: 0; display: inline;">Configure TTS</h2>
             </summary>
@@ -555,7 +555,7 @@
         <article>
           <details>
             <summary style="cursor: pointer;">
-              <h2 style="margin: 0; display: inline;">Background Audio <span style="opacity: 0.7; font-weight: normal; font-size: 0.875rem;">(Optional)</span></h2>
+              <h2 style="margin: 0; display: inline;">Configure Background Audio</h2>
             </summary>
             <div style="margin-top: 1rem;">
               <!-- Audio Source Selection -->
@@ -676,60 +676,7 @@
                 </small>
               </label>
 
-              <!-- Seamless Loop Preparation -->
-              <fieldset style="margin-top: 1rem; padding: 1rem; border: 1px solid var(--muted-border-color); border-radius: 0.5rem;">
-                <legend style="font-weight: 600; padding: 0 0.5rem;">Loop Preparation</legend>
-                <label for="prepare-loop" style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer;">
-                  <input
-                    type="checkbox"
-                    id="prepare-loop"
-                    name="prepare-loop"
-                    style="margin-top: 0.25rem;"
-                  />
-                  <span>
-                    <strong>Prepare for seamless looping</strong>
-                    <small style="color: var(--muted-color); display: block; margin-top: 0.25rem;">
-                      Trims silence from start/end and applies a crossfade at the loop point. 
-                      Recommended when your program is longer than the background audio.
-                    </small>
-                  </span>
-                </label>
-                
-                <div id="loop-options" style="display: none; margin-top: 1rem; padding-left: 1.5rem;">
-                  <label for="silence-threshold">
-                    Silence threshold (dB)
-                    <input
-                      type="number"
-                      id="silence-threshold"
-                      name="silence-threshold"
-                      value="-40"
-                      min="-60"
-                      max="-20"
-                      step="1"
-                    />
-                    <small style="color: var(--muted-color);">
-                      Audio below this level is considered silence. Lower = more sensitive.
-                    </small>
-                  </label>
-                  
-                  <label for="crossfade-duration">
-                    Crossfade duration (ms)
-                    <input
-                      type="number"
-                      id="crossfade-duration"
-                      name="crossfade-duration"
-                      value="100"
-                      min="10"
-                      max="500"
-                      step="10"
-                    />
-                    <small style="color: var(--muted-color);">
-                      Duration of the crossfade blend at the loop point. Longer = smoother but may blur transients.
-                    </small>
-                  </label>
-                </div>
-              </fieldset>
-              </div>
+</div>
             </div>
           </details>
           </form>
@@ -878,7 +825,7 @@
               </div>
             </div>
             
-            <button id="download-btn">Download Audio</button>
+            <button id="download-btn">Generate and Download Audio File</button>
           </div>
         </article>
       </section>

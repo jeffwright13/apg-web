@@ -308,9 +308,3 @@ button {
   opacity: 0.7;
 }
 
-
-/* Optional label styling */
-#background-audio-section summary h2 span {
-  font-size: 0.875rem;
-  font-weight: normal;
-}
