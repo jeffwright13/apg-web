@@ -687,7 +687,11 @@
 <!-- GENERATE & PREVIEW Section -->
       <section id="generate-preview-section">
         <article>
-          <header><h2>Generate | Preview | Save</h2></header>
+          <details open>
+            <summary style="cursor: pointer;">
+              <h2 style="margin: 0; display: inline;">Generate | Preview | Save</h2>
+            </summary>
+            <div style="margin-top: 1rem;">
           <div style="display: flex; gap: 0.5rem; align-items: stretch;">
             <button type="submit" form="apg-form" id="generate-btn" style="flex: 1;">
               Generate Audio Program
@@ -827,6 +831,8 @@
             
             <button id="download-btn">Generate and Download Audio File</button>
           </div>
+            </div>
+          </details>
         </article>
       </section>
 
