@@ -115,8 +115,9 @@ export class OpenAITTSAdapter extends TTSEngineAdapter {
       throw new Error('API key required for OpenAI TTS');
     }
 
-    if (!text || text === '*') {
-      // Return silence
+    if (!text || text === '*' || text.trim() === '.') {
+      // Return silence — also treat bare "." as silence since gpt-4o-mini-tts
+      // interprets it as a conversational prompt and produces unpredictable audio
       return this.generateSilence(options.duration || 1);
     }
 

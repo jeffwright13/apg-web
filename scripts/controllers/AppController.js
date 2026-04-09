@@ -463,7 +463,13 @@ export class AppController {
       openaiVoiceSelect.addEventListener('change', () => {
         if (gpt4oOnlyVoices.has(openaiVoiceSelect.value) &&
             openaiModelSelect.value !== 'gpt-4o-mini-tts') {
+          // Upgrade to gpt-4o-mini-tts when a voice requires it
           openaiModelSelect.value = 'gpt-4o-mini-tts';
+          updateInstructionsVisibility();
+        } else if (!gpt4oOnlyVoices.has(openaiVoiceSelect.value) &&
+            openaiModelSelect.value === 'gpt-4o-mini-tts') {
+          // Downgrade back to tts-1 when switching to a standard voice
+          openaiModelSelect.value = 'tts-1';
           updateInstructionsVisibility();
         }
       });
