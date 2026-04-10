@@ -65,6 +65,7 @@ export class ProjectCacheService {
       phraseFileContent: project.phraseFileContent,
       backgroundMusic: project.backgroundMusic || null,
       backgroundMusicName: project.backgroundMusicName || null,
+      backgroundSettings: project.backgroundSettings || null,
       ttsEngine: project.ttsEngine,
       ttsOptions: project.ttsOptions,
       exportSettings: project.exportSettings || { format: 'mp3', bitrate: 192 },
