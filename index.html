@@ -198,6 +198,29 @@
                 <div id="editor-validation" class="editor-validation" style="display: none;"></div>
               </div>
             </div>
+
+            <!-- Editor Settings (collapsed, rarely changed) -->
+            <details style="margin-top: 1rem;">
+              <summary style="cursor: pointer; font-size: 0.875rem; color: var(--muted-color);">Editor Settings</summary>
+              <div style="margin-top: 0.75rem; padding-left: 0.5rem;">
+                <label for="max-pause-duration" style="font-size: 0.875rem;">
+                  Max pause duration warning (seconds)
+                  <input
+                    type="number"
+                    id="max-pause-duration"
+                    name="max-pause-duration"
+                    value="120"
+                    min="1"
+                    max="3600"
+                    step="1"
+                    style="margin-top: 0.25rem;"
+                  />
+                  <small style="color: var(--muted-color);">
+                    Pauses longer than this trigger a validation warning. Does not prevent generation.
+                  </small>
+                </label>
+              </div>
+            </details>
             </div>
           </details>
         </article>

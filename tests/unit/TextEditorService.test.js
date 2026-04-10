@@ -122,11 +122,19 @@ describe('TextEditorService', () => {
     });
 
     test('should warn about very long duration', () => {
-      const text = 'Hello world;100';
-      const result = service.validateSyntax(text);
+      const text = 'Hello world;200';
+      const result = service.validateSyntax(text); // default maxPauseDuration = 120
       expect(result.valid).toBe(true); // Long durations are warnings, not errors
       expect(result.warnings.length).toBeGreaterThan(0);
       expect(result.warnings[0]).toContain('quite long');
+    });
+
+    test('should respect custom maxPauseDuration', () => {
+      const text = 'Hello world;90';
+      const resultOk = service.validateSyntax(text, 120);
+      expect(resultOk.warnings.length).toBe(0);
+      const resultWarn = service.validateSyntax(text, 60);
+      expect(resultWarn.warnings.length).toBeGreaterThan(0);
     });
 
     test('should allow decimal durations', () => {

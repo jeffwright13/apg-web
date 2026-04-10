@@ -1878,7 +1878,8 @@ export class AppController {
 
     // Validate syntax
     if (validationDiv && text.trim()) {
-      const validation = this.editorService.validateSyntax(text);
+      const maxPause = parseFloat(document.getElementById('max-pause-duration')?.value) || 120;
+      const validation = this.editorService.validateSyntax(text, maxPause);
       const hasErrors = validation.errors.length > 0;
       const hasWarnings = validation.warnings && validation.warnings.length > 0;
       

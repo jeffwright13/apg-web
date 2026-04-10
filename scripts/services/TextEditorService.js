@@ -159,7 +159,7 @@ Thank you for your cooperation.;2`
    * @param {string} text - Text to validate
    * @returns {{valid: boolean, errors: Array<string>, warnings: Array<string>}}
    */
-  validateSyntax(text) {
+  validateSyntax(text, maxPauseDuration = 120) {
     const errors = [];
     const warnings = [];
     const lines = text.split('\n');
@@ -187,9 +187,9 @@ Thank you for your cooperation.;2`
         const durationNum = parseFloat(duration);
         if (durationNum < 0) {
           errors.push(`Line ${lineNum}: Duration cannot be negative`);
-        } else if (durationNum > 60) {
+        } else if (durationNum > maxPauseDuration) {
           // Long durations are warnings, not errors - they're valid syntax
-          warnings.push(`Line ${lineNum}: Duration is quite long (${durationNum}s). This is valid but consider if it's intentional.`);
+          warnings.push(`Line ${lineNum}: Duration is quite long (${durationNum}s > ${maxPauseDuration}s). This is valid but consider if it's intentional.`);
         }
       }
     });
