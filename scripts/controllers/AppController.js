@@ -248,8 +248,10 @@ export class AppController {
 
       // Restore background audio settings
       const bg = project.backgroundSettings;
+      const audioSourceSelect = document.getElementById('audio-source');
       if (bg) {
-        const audioSourceSelect = document.getElementById('audio-source');
+        // eslint-disable-next-line no-console
+        console.log('🎵 Restoring background settings:', bg);
         if (audioSourceSelect) {
           audioSourceSelect.value = bg.source || 'none';
           audioSourceSelect.dispatchEvent(new Event('change'));
@@ -257,11 +259,20 @@ export class AppController {
         const sampleSelect = document.getElementById('sample-audio-select');
         if (sampleSelect && bg.sampleName) sampleSelect.value = bg.sampleName;
         const attenuationInput = document.getElementById('attenuation');
-        if (attenuationInput) attenuationInput.value = bg.attenuation ?? 0;
+        if (attenuationInput) attenuationInput.value = bg.attenuation ?? -6;
         const fadeInInput = document.getElementById('fade-in');
         if (fadeInInput) fadeInInput.value = bg.fadeIn ?? 3000;
         const fadeOutInput = document.getElementById('fade-out');
         if (fadeOutInput) fadeOutInput.value = bg.fadeOut ?? 6000;
+      } else if (project.backgroundMusic && audioSourceSelect) {
+        // Old project (pre-v1.9.4): has background music but no backgroundSettings saved
+        // eslint-disable-next-line no-console
+        console.log('🎵 Old project format — inferring background source from backgroundMusic presence');
+        audioSourceSelect.value = 'file';
+        audioSourceSelect.dispatchEvent(new Event('change'));
+      } else {
+        // eslint-disable-next-line no-console
+        console.log('🎵 No background settings found — leaving at defaults');
       }
 
       // Restore background music file if available
@@ -317,11 +328,13 @@ export class AppController {
       }
 
       // Show non-blocking confirmation in progress area
-      this.progressContainer.style.display = 'block';
-      this.updateProgress(100, `✓ Project "${project.name}" restored — click Generate Audio Program to recreate it.`);
-      setTimeout(() => {
-        this.progressContainer.style.display = 'none';
-      }, 4000);
+      if (this.progressContainer) {
+        this.progressContainer.style.display = 'block';
+        this.updateProgress(100, `✓ Project "${project.name}" restored — click Generate Audio Program to recreate it.`);
+        setTimeout(() => {
+          this.progressContainer.style.display = 'none';
+        }, 4000);
+      }
     } catch (error) {
       console.error('Failed to restore project:', error);
       alert('Failed to restore project. Check console for details.');
