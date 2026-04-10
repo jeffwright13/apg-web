@@ -231,36 +231,61 @@ export class AppController {
       // eslint-disable-next-line no-console
       console.log(`🔄 Restoring project: "${project.name}"`);
 
-      // Create a File object from the phrase content
-      const phraseFile = new File([project.phraseFileContent], project.name, {
-        type: 'text/plain',
-      });
+      // Restore phrase content into the text editor and switch to editor mode
+      const editor = document.getElementById('apg-editor');
+      const inputModeSelect = document.getElementById('input-mode');
+      const fileUploadMode = document.getElementById('file-upload-mode');
+      const textEditorMode = document.getElementById('text-editor-mode');
+      if (editor && project.phraseFileContent) {
+        editor.value = project.phraseFileContent;
+        this.editorService.saveToLocalStorage(project.phraseFileContent);
+        this.updateEditorUI();
+      }
+      if (inputModeSelect) inputModeSelect.value = 'editor';
+      if (fileUploadMode) fileUploadMode.style.display = 'none';
+      if (textEditorMode) textEditorMode.style.display = 'block';
+      this.inputMode = 'editor';
 
-      // Set the phrase file
-      const phraseInput = document.getElementById('phrase-file');
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(phraseFile);
-      phraseInput.files = dataTransfer.files;
+      // Restore background audio settings
+      const bg = project.backgroundSettings;
+      if (bg) {
+        const audioSourceSelect = document.getElementById('audio-source');
+        if (audioSourceSelect) {
+          audioSourceSelect.value = bg.source || 'none';
+          audioSourceSelect.dispatchEvent(new Event('change'));
+        }
+        const sampleSelect = document.getElementById('sample-audio-select');
+        if (sampleSelect && bg.sampleName) sampleSelect.value = bg.sampleName;
+        const attenuationInput = document.getElementById('attenuation');
+        if (attenuationInput) attenuationInput.value = bg.attenuation ?? 0;
+        const fadeInInput = document.getElementById('fade-in');
+        if (fadeInInput) fadeInInput.value = bg.fadeIn ?? 3000;
+        const fadeOutInput = document.getElementById('fade-out');
+        if (fadeOutInput) fadeOutInput.value = bg.fadeOut ?? 6000;
+      }
 
-      // Set background music if available
+      // Restore background music file if available
       if (project.backgroundMusic) {
         const soundInput = document.getElementById('sound-file');
-        const musicFile = new File([project.backgroundMusic], project.backgroundMusicName || 'background.mp3', {
-          type: project.backgroundMusic.type,
-        });
+        const musicType = project.backgroundMusic.type || 'audio/mpeg';
+        const musicFile = new File(
+          [project.backgroundMusic],
+          project.backgroundMusicName || 'background.mp3',
+          { type: musicType }
+        );
         const musicTransfer = new DataTransfer();
         musicTransfer.items.add(musicFile);
         soundInput.files = musicTransfer.files;
       }
 
-      // Set TTS engine
+      // Restore TTS engine
       const engineSelect = document.getElementById('tts-engine');
       if (engineSelect) {
         engineSelect.value = project.ttsEngine;
         this.updateEngineUI(project.ttsEngine);
       }
 
-      // Set TTS options based on engine
+      // Restore TTS options based on engine
       if (project.ttsEngine === 'openai') {
         const voiceSelect = document.getElementById('openai-voice');
         const modelSelect = document.getElementById('openai-model');
@@ -270,7 +295,6 @@ export class AppController {
         if (speedSlider) speedSlider.value = project.ttsOptions.speed || 1.0;
         const instructionsField = document.getElementById('openai-voice-instructions');
         if (instructionsField) instructionsField.value = project.ttsOptions.instructions || '';
-        // Sync instructions section visibility with restored model
         const instructionsSection = document.getElementById('openai-instructions-section');
         if (instructionsSection && modelSelect) {
           instructionsSection.style.display = modelSelect.value === 'gpt-4o-mini-tts' ? 'block' : 'none';
@@ -284,7 +308,7 @@ export class AppController {
         if (pitchSlider) pitchSlider.value = project.ttsOptions.pitch || 0.0;
       }
 
-      // Set export settings
+      // Restore export settings
       if (project.exportSettings) {
         const formatSelect = document.getElementById('export-format');
         const bitrateSelect = document.getElementById('mp3-bitrate');
@@ -292,7 +316,12 @@ export class AppController {
         if (bitrateSelect) bitrateSelect.value = project.exportSettings.bitrate || 192;
       }
 
-      alert(`Project "${project.name}" restored! Click "Generate Audio" to recreate it.`);
+      // Show non-blocking confirmation in progress area
+      this.progressContainer.style.display = 'block';
+      this.updateProgress(100, `✓ Project "${project.name}" restored — click Generate Audio Program to recreate it.`);
+      setTimeout(() => {
+        this.progressContainer.style.display = 'none';
+      }, 4000);
     } catch (error) {
       console.error('Failed to restore project:', error);
       alert('Failed to restore project. Check console for details.');
@@ -373,11 +402,21 @@ export class AppController {
         .map((p) => `${p.phrase || p.text}; ${p.duration}`)
         .join('\n');
 
+      // Get background audio settings
+      const backgroundSettings = {
+        source: formData.get('audio-source') || 'none',
+        sampleName: formData.get('sample-audio-select') || '',
+        attenuation: parseInt(formData.get('attenuation')) || 0,
+        fadeIn: parseInt(formData.get('fade-in')) || 3000,
+        fadeOut: parseInt(formData.get('fade-out')) || 6000,
+      };
+
       const projectData = {
         name: this.currentPhraseFileName,
         phraseFileContent,
         backgroundMusic: this.currentBackgroundMusicFile,
         backgroundMusicName: this.currentBackgroundMusicFile?.name,
+        backgroundSettings,
         ttsEngine,
         ttsOptions,
         exportSettings,
@@ -1749,9 +1788,6 @@ export class AppController {
     const fileUploadMode = document.getElementById('file-upload-mode');
     const textEditorMode = document.getElementById('text-editor-mode');
     const editor = document.getElementById('apg-editor');
-    const templateSelect = document.getElementById('template-select');
-    const saveEditorBtn = document.getElementById('save-editor-btn');
-    const loadEditorBtn = document.getElementById('load-editor-btn');
     const clearEditorBtn = document.getElementById('clear-editor-btn');
 
     if (!editor) return;
@@ -1800,46 +1836,6 @@ export class AppController {
       this.updateEditorUI();
       this.scheduleAutoSave();
     });
-
-    // Template selection
-    if (templateSelect) {
-      templateSelect.addEventListener('change', (e) => {
-        if (e.target.value) {
-          const template = this.editorService.loadTemplate(e.target.value);
-          editor.value = template;
-          this.updateEditorUI();
-          this.scheduleAutoSave();
-          e.target.value = ''; // Reset dropdown
-        }
-      });
-    }
-
-    // Save button
-    if (saveEditorBtn) {
-      saveEditorBtn.addEventListener('click', () => {
-        const success = this.editorService.saveToLocalStorage(editor.value);
-        const statusSpan = document.getElementById('auto-save-status');
-        if (statusSpan) {
-          statusSpan.textContent = success ? '✓ Saved' : '✗ Save failed';
-          setTimeout(() => {
-            statusSpan.textContent = 'Auto-saved';
-          }, 2000);
-        }
-      });
-    }
-
-    // Load button
-    if (loadEditorBtn) {
-      loadEditorBtn.addEventListener('click', () => {
-        const saved = this.editorService.loadFromLocalStorage();
-        if (saved) {
-          editor.value = saved;
-          this.updateEditorUI();
-        } else {
-          alert('No saved content found');
-        }
-      });
-    }
 
     // Clear button
     if (clearEditorBtn) {

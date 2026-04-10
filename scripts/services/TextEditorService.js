@@ -1,72 +1,12 @@
 /**
  * Text Editor Service
  * Manages the built-in text editor for APG programs
- * Features: line numbers, syntax highlighting, localStorage, templates
+ * Features: syntax highlighting, localStorage auto-save
  */
 
 export class TextEditorService {
   constructor() {
     this.STORAGE_KEY = 'apg_editor_content';
-    this.templates = {
-      simple: `Hello, welcome to the Audio Program Generator!;2
-This is a simple example program.;1.5
-You can create your own programs using this editor.;2`,
-      
-      loop: `Starting countdown;1
-Three;1
-Two;1
-One;1
-Blast off!;2`,
-      
-      conversation: `Hi there! How are you today?;1.5
-I'm doing great, thanks for asking!;1.5
-That's wonderful to hear.;1
-How about you?;1.5
-I'm fantastic! Thanks for asking.;2`,
-      
-      meditation: `Welcome to this brief meditation session.;3
-Take a deep breath in.;4
-And slowly breathe out.;4
-Feel your body relax with each breath.;3
-Continue breathing naturally.;2`,
-      
-      announcement: `Attention please.;2
-The event will begin in five minutes.;2
-Please take your seats.;1.5
-Thank you for your cooperation.;2`
-    };
-  }
-
-  /**
-   * Get all available templates
-   * @returns {Object} Template names and content
-   */
-  getTemplates() {
-    return this.templates;
-  }
-
-  /**
-   * Get template names for dropdown
-   * @returns {Array<{value: string, label: string}>}
-   */
-  getTemplateOptions() {
-    return [
-      { value: '', label: '-- Select a template --' },
-      { value: 'simple', label: 'Simple Example' },
-      { value: 'loop', label: 'Countdown Loop' },
-      { value: 'conversation', label: 'Two-Voice Conversation' },
-      { value: 'meditation', label: 'Meditation Guide' },
-      { value: 'announcement', label: 'Public Announcement' }
-    ];
-  }
-
-  /**
-   * Load template content
-   * @param {string} templateName - Name of template
-   * @returns {string} Template content
-   */
-  loadTemplate(templateName) {
-    return this.templates[templateName] || '';
   }
 
   /**

@@ -459,6 +459,145 @@ describe('AppController', () => {
     });
   });
 
+  // ── restoreProject ────────────────────────────────────────────────────────
+
+  describe('restoreProject', () => {
+    function setupRestoreDOM() {
+      // Append only elements not already created by setupDOM()
+      document.body.innerHTML += `
+        <textarea id="apg-editor"></textarea>
+        <select id="input-mode">
+          <option value="file" selected>File</option>
+          <option value="editor">Editor</option>
+        </select>
+        <div id="file-upload-mode"></div>
+        <div id="text-editor-mode" style="display:none;"></div>
+        <input id="sound-file" type="file" />
+        <select id="tts-engine">
+          <option value="openai" selected>OpenAI</option>
+          <option value="google-cloud">Google</option>
+        </select>
+        <input id="openai-speed" type="range" value="1.0" />
+        <select id="voice-name"><option value="en-US-Neural2-F" selected>F</option></select>
+        <input id="speaking-rate" type="range" value="1.0" />
+        <input id="pitch" type="range" value="0" />
+        <select id="export-format"><option value="mp3" selected>MP3</option></select>
+        <select id="mp3-bitrate"><option value="192" selected>192</option></select>
+        <div id="output-section" style="display:none;"></div>
+        <div id="progress-container" style="display:none;"></div>
+        <div id="progress-bar"></div>
+        <div id="progress-message"></div>
+        <div id="stat-lines"></div>
+        <div id="stat-chars"></div>
+        <div id="stat-words"></div>
+        <div id="auto-save-status"></div>
+        <div id="editor-validation" style="display:none;"></div>
+      `;
+      // Add onyx to the existing openai-voice select (created by setupDOM)
+      const voiceSelect = document.getElementById('openai-voice');
+      if (voiceSelect && !voiceSelect.querySelector('[value="onyx"]')) {
+        voiceSelect.innerHTML += '<option value="onyx">Onyx</option>';
+      }
+    }
+
+    function makeProject(overrides = {}) {
+      return {
+        id: 'proj-1',
+        name: 'test-program.txt',
+        phraseFileContent: 'Hello;2\nGoodbye;1',
+        ttsEngine: 'openai',
+        ttsOptions: { voice: 'onyx', model: 'tts-1', speed: 1.2 },
+        exportSettings: { format: 'mp3', bitrate: 192 },
+        backgroundMusic: null,
+        ...overrides,
+      };
+    }
+
+    beforeEach(() => {
+      setupRestoreDOM();
+      controller.progressContainer = document.getElementById('progress-container');
+    });
+
+    test('restores phraseFileContent into the editor textarea', async () => {
+      controller.projectCache = { getProject: async () => makeProject() };
+      await controller.restoreProject('proj-1');
+      expect(document.getElementById('apg-editor').value).toBe('Hello;2\nGoodbye;1');
+    });
+
+    test('switches input mode to editor', async () => {
+      controller.projectCache = { getProject: async () => makeProject() };
+      await controller.restoreProject('proj-1');
+      expect(document.getElementById('input-mode').value).toBe('editor');
+      expect(controller.inputMode).toBe('editor');
+    });
+
+    test('shows text-editor-mode panel and hides file-upload-mode', async () => {
+      controller.projectCache = { getProject: async () => makeProject() };
+      await controller.restoreProject('proj-1');
+      expect(document.getElementById('text-editor-mode').style.display).toBe('block');
+      expect(document.getElementById('file-upload-mode').style.display).toBe('none');
+    });
+
+    test('saves phrase content to localStorage', async () => {
+      controller.projectCache = { getProject: async () => makeProject() };
+      await controller.restoreProject('proj-1');
+      expect(localStorage.getItem('apg_editor_content')).toBe('Hello;2\nGoodbye;1');
+    });
+
+    test('restores OpenAI voice and model', async () => {
+      controller.projectCache = { getProject: async () => makeProject() };
+      await controller.restoreProject('proj-1');
+      expect(document.getElementById('openai-voice').value).toBe('onyx');
+      expect(document.getElementById('openai-model').value).toBe('tts-1');
+    });
+
+    test('restores export format and bitrate', async () => {
+      controller.projectCache = { getProject: async () => makeProject() };
+      await controller.restoreProject('proj-1');
+      expect(document.getElementById('export-format').value).toBe('mp3');
+      expect(document.getElementById('mp3-bitrate').value).toBe('192');
+    });
+
+    test('restores background music with fallback type', async () => {
+      const blob = new Blob(['audio'], { type: '' }); // no type
+      controller.projectCache = {
+        getProject: async () => makeProject({ backgroundMusic: blob, backgroundMusicName: 'bg.mp3' }),
+      };
+      // Patch DataTransfer to capture the file added
+      let capturedFile = null;
+      global.DataTransfer = class {
+        constructor() { this.files = { length: 1 }; }
+        get items() { return { add: (f) => { capturedFile = f; } }; }
+      };
+      // Patch sound-file.files setter
+      const soundInput = document.getElementById('sound-file');
+      Object.defineProperty(soundInput, 'files', { set() {}, get() { return { length: 1, 0: capturedFile }; }, configurable: true });
+
+      await controller.restoreProject('proj-1');
+
+      expect(capturedFile).not.toBeNull();
+      expect(capturedFile.name).toBe('bg.mp3');
+      expect(capturedFile.type).toBe('audio/mpeg');
+    });
+
+    test('shows progress confirmation then hides it', async () => {
+      controller.projectCache = { getProject: async () => makeProject() };
+      await controller.restoreProject('proj-1');
+      expect(controller.progressContainer.style.display).toBe('block');
+      flushTimeouts();
+      expect(controller.progressContainer.style.display).toBe('none');
+    });
+
+    test('handles project not found gracefully', async () => {
+      controller.projectCache = { getProject: async () => null };
+      const alertCalls = [];
+      global.alert = (msg) => alertCalls.push(msg);
+      await controller.restoreProject('missing-id');
+      expect(alertCalls).toContain('Project not found');
+      expect(document.getElementById('apg-editor').value).toBe('');
+    });
+  });
+
   // ── setupSliderValueDisplays ──────────────────────────────────────────────
 
   describe('setupSliderValueDisplays', () => {

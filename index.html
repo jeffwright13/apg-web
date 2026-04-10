@@ -83,6 +83,9 @@
               <button type="button" id="clear-projects-btn" class="secondary" style="margin: 0; padding: 0.25rem 0.75rem; font-size: 0.875rem;">
                 Clear All
               </button>
+              <p style="margin-top: 0.75rem; margin-bottom: 0; font-size: 0.8rem; color: var(--muted-color);">
+                Projects are saved automatically each time you successfully generate audio. Restoring a project reloads all settings and program text into the editor.
+              </p>
             </div>
           </details>
         </article>
@@ -151,20 +154,6 @@
               <div class="editor-container">
                 <!-- Editor Toolbar -->
                 <div class="editor-toolbar">
-                  <select id="template-select" aria-label="Load template">
-                    <option value="">-- Select a template --</option>
-                    <option value="simple">Simple Example</option>
-                    <option value="loop">Countdown Loop</option>
-                    <option value="conversation">Two-Voice Conversation</option>
-                    <option value="meditation">Meditation Guide</option>
-                    <option value="announcement">Public Announcement</option>
-                  </select>
-                  <button type="button" id="save-editor-btn" class="secondary">
-                    💾 Save
-                  </button>
-                  <button type="button" id="load-editor-btn" class="secondary">
-                    📂 Load
-                  </button>
                   <button type="button" id="clear-editor-btn" class="secondary">
                     🗑️ Clear
                   </button>

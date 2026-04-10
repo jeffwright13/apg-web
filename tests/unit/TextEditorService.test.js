@@ -1,6 +1,6 @@
 /**
  * Tests for TextEditorService
- * Covers templates, validation, syntax highlighting, and localStorage
+ * Covers validation, syntax highlighting, and localStorage
  */
 
 import { TextEditorService } from '../../scripts/services/TextEditorService.js';
@@ -30,56 +30,6 @@ describe('TextEditorService', () => {
   beforeEach(() => {
     service = new TextEditorService();
     localStorage.clear();
-  });
-
-  describe('Templates', () => {
-    test('should return all templates', () => {
-      const templates = service.getTemplates();
-      expect(templates).toBeDefined();
-      expect(typeof templates).toBe('object');
-      expect(Object.keys(templates).length).toBeGreaterThan(0);
-    });
-
-    test('should have simple template', () => {
-      const templates = service.getTemplates();
-      expect(templates.simple).toBeDefined();
-      expect(templates.simple).toContain(';');
-    });
-
-    test('should have loop template', () => {
-      const templates = service.getTemplates();
-      expect(templates.loop).toBeDefined();
-      expect(templates.loop).toContain(';');
-    });
-
-    test('should have conversation template', () => {
-      const templates = service.getTemplates();
-      expect(templates.conversation).toBeDefined();
-      expect(templates.conversation).toContain(';');
-    });
-
-    test('should have meditation template', () => {
-      const templates = service.getTemplates();
-      expect(templates.meditation).toBeDefined();
-      expect(templates.meditation).toContain(';');
-    });
-
-    test('should have announcement template', () => {
-      const templates = service.getTemplates();
-      expect(templates.announcement).toBeDefined();
-      expect(templates.announcement).toContain(';');
-    });
-
-    test('all templates should use correct format (text;seconds)', () => {
-      const templates = service.getTemplates();
-      Object.values(templates).forEach(template => {
-        const lines = template.split('\n').filter(line => line.trim());
-        lines.forEach(line => {
-          // Each line should match the pattern: text;number
-          expect(line).toMatch(/^.+;\s*\d+(?:\.\d+)?$/);
-        });
-      });
-    });
   });
 
   describe('Syntax Validation', () => {
