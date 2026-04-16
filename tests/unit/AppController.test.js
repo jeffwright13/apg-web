@@ -461,10 +461,10 @@ describe('AppController', () => {
 
   // ── restoreProject ────────────────────────────────────────────────────────
 
-  describe('restoreProject', () => {
-    function setupRestoreDOM() {
+  function setupRestoreDOM() {
       // Append only elements not already created by setupDOM()
       document.body.innerHTML += `
+        <input id="program-description" type="text" value="" />
         <textarea id="apg-editor"></textarea>
         <select id="input-mode">
           <option value="file" selected>File</option>
@@ -476,6 +476,15 @@ describe('AppController', () => {
         <select id="tts-engine">
           <option value="openai" selected>OpenAI</option>
           <option value="google-cloud">Google</option>
+        </select>
+        <select id="audio-source">
+          <option value="none" selected>None</option>
+          <option value="sample">Sample</option>
+          <option value="file">File</option>
+        </select>
+        <select id="sample-audio-select">
+          <option value="" selected>-- Select --</option>
+          <option value="meditation_yoga_relaxing_music">Meditation</option>
         </select>
         <input id="openai-speed" type="range" value="1.0" />
         <select id="voice-name"><option value="en-US-Neural2-F" selected>F</option></select>
@@ -498,21 +507,23 @@ describe('AppController', () => {
       if (voiceSelect && !voiceSelect.querySelector('[value="onyx"]')) {
         voiceSelect.innerHTML += '<option value="onyx">Onyx</option>';
       }
-    }
+  }
 
-    function makeProject(overrides = {}) {
-      return {
-        id: 'proj-1',
-        name: 'test-program.txt',
-        phraseFileContent: 'Hello;2\nGoodbye;1',
-        ttsEngine: 'openai',
-        ttsOptions: { voice: 'onyx', model: 'tts-1', speed: 1.2 },
-        exportSettings: { format: 'mp3', bitrate: 192 },
-        backgroundMusic: null,
-        ...overrides,
-      };
-    }
+  function makeProject(overrides = {}) {
+    return {
+      id: 'proj-1',
+      name: 'test-program.txt',
+      programDescription: 'morning qi gong',
+      phraseFileContent: 'Hello;2\nGoodbye;1',
+      ttsEngine: 'openai',
+      ttsOptions: { voice: 'onyx', model: 'tts-1', speed: 1.2 },
+      exportSettings: { format: 'mp3', bitrate: 192 },
+      backgroundMusic: null,
+      ...overrides,
+    };
+  }
 
+  describe('restoreProject', () => {
     beforeEach(() => {
       setupRestoreDOM();
       controller.progressContainer = document.getElementById('progress-container');
@@ -595,6 +606,113 @@ describe('AppController', () => {
       await controller.restoreProject('missing-id');
       expect(alertCalls).toContain('Project not found');
       expect(document.getElementById('apg-editor').value).toBe('');
+    });
+
+    test('restores program description field', async () => {
+      controller.projectCache = { getProject: async () => makeProject() };
+      await controller.restoreProject('proj-1');
+      expect(document.getElementById('program-description').value).toBe('morning qi gong');
+    });
+
+    test('clears program description field when project has none', async () => {
+      document.getElementById('program-description').value = 'old value';
+      controller.projectCache = {
+        getProject: async () => makeProject({ programDescription: '' }),
+      };
+      await controller.restoreProject('proj-1');
+      expect(document.getElementById('program-description').value).toBe('');
+    });
+  });
+
+  // ── buildDownloadFilename ─────────────────────────────────────────────────
+
+  describe('buildDownloadFilename', () => {
+    beforeEach(() => {
+      setupRestoreDOM();
+      controller.currentPhraseFileName = 'test-program.txt';
+    });
+
+    test('uses program description field value in filename', () => {
+      document.getElementById('program-description').value = 'morning qi gong';
+      document.getElementById('openai-voice').value = 'nova';
+      document.getElementById('audio-source').value = 'none';
+      const name = controller.buildDownloadFilename('mp3');
+      expect(name).toMatch(/^[\d]{8}-[\d]{6}_morning-qi-gong_nova_nobg\.mp3$/);
+    });
+
+    test('falls back to phrase filename stem when description is blank', () => {
+      document.getElementById('program-description').value = '';
+      document.getElementById('openai-voice').value = 'nova';
+      document.getElementById('audio-source').value = 'none';
+      const name = controller.buildDownloadFilename('mp3');
+      expect(name).toContain('_test-program_');
+    });
+
+    test('falls back to "program" when description and filename are both blank', () => {
+      controller.currentPhraseFileName = null;
+      document.getElementById('program-description').value = '';
+      document.getElementById('openai-voice').value = 'nova';
+      document.getElementById('audio-source').value = 'none';
+      const name = controller.buildDownloadFilename('mp3');
+      expect(name).toContain('_program_');
+    });
+
+    test('sanitizes description to kebab-case', () => {
+      document.getElementById('program-description').value = '  Sun  Salutation! 2025  ';
+      document.getElementById('openai-voice').value = 'nova';
+      document.getElementById('audio-source').value = 'none';
+      const name = controller.buildDownloadFilename('mp3');
+      expect(name).toContain('_sun-salutation-2025_');
+    });
+
+    test('uses voice name for openai engine', () => {
+      document.getElementById('program-description').value = 'test';
+      document.getElementById('tts-engine').value = 'openai';
+      document.getElementById('openai-voice').value = 'onyx';
+      document.getElementById('audio-source').value = 'none';
+      const name = controller.buildDownloadFilename('mp3');
+      expect(name).toContain('_onyx_');
+    });
+
+    test('includes sample name when audio source is sample', () => {
+      document.getElementById('program-description').value = 'test';
+      document.getElementById('openai-voice').value = 'nova';
+      document.getElementById('audio-source').value = 'sample';
+      document.getElementById('sample-audio-select').value = 'meditation_yoga_relaxing_music';
+      const name = controller.buildDownloadFilename('mp3');
+      expect(name).toContain('_meditation-yoga-relaxing-music.');
+    });
+
+    test('uses nobg when audio source is none', () => {
+      document.getElementById('program-description').value = 'test';
+      document.getElementById('openai-voice').value = 'nova';
+      document.getElementById('audio-source').value = 'none';
+      const name = controller.buildDownloadFilename('mp3');
+      expect(name).toContain('_nobg.');
+    });
+
+    test('uses wav extension for wav format', () => {
+      document.getElementById('program-description').value = 'test';
+      document.getElementById('openai-voice').value = 'nova';
+      document.getElementById('audio-source').value = 'none';
+      const name = controller.buildDownloadFilename('wav');
+      expect(name).toMatch(/\.wav$/);
+    });
+
+    test('uses mp3 extension for mp3 format', () => {
+      document.getElementById('program-description').value = 'test';
+      document.getElementById('openai-voice').value = 'nova';
+      document.getElementById('audio-source').value = 'none';
+      const name = controller.buildDownloadFilename('mp3');
+      expect(name).toMatch(/\.mp3$/);
+    });
+
+    test('filename starts with sortable timestamp', () => {
+      document.getElementById('program-description').value = 'test';
+      document.getElementById('openai-voice').value = 'nova';
+      document.getElementById('audio-source').value = 'none';
+      const name = controller.buildDownloadFilename('mp3');
+      expect(name).toMatch(/^\d{8}-\d{6}_/);
     });
   });
 

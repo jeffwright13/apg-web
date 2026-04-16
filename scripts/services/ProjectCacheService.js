@@ -62,6 +62,7 @@ export class ProjectCacheService {
     const projectData = {
       id: this.generateId(),
       name: project.name || 'Untitled Project',
+      programDescription: project.programDescription || '',
       phraseFileContent: project.phraseFileContent,
       backgroundMusic: project.backgroundMusic || null,
       backgroundMusicName: project.backgroundMusicName || null,

@@ -231,6 +231,10 @@ export class AppController {
       // eslint-disable-next-line no-console
       console.log(`🔄 Restoring project: "${project.name}"`);
 
+      // Restore program description
+      const descField = document.getElementById('program-description');
+      if (descField) descField.value = project.programDescription || '';
+
       // Restore phrase content into the text editor and switch to editor mode
       const editor = document.getElementById('apg-editor');
       const inputModeSelect = document.getElementById('input-mode');
@@ -415,6 +419,10 @@ export class AppController {
         .map((p) => `${p.phrase || p.text}; ${p.duration}`)
         .join('\n');
 
+      // Get program description
+      const programDescriptionEl = document.getElementById('program-description');
+      const programDescription = programDescriptionEl?.value?.trim() || '';
+
       // Get background audio settings
       const backgroundSettings = {
         source: formData.get('audio-source') || 'none',
@@ -426,6 +434,7 @@ export class AppController {
 
       const projectData = {
         name: this.currentPhraseFileName,
+        programDescription,
         phraseFileContent,
         backgroundMusic: this.currentBackgroundMusicFile,
         backgroundMusicName: this.currentBackgroundMusicFile?.name,
@@ -1684,6 +1693,66 @@ export class AppController {
     this.updateProgress(0, 'Playback stopped');
   }
 
+  /**
+   * Build a descriptive filename for the downloaded audio file.
+   * Format: YYYYMMDD-HHmmss_<description>_<voice>_<background>.<ext>
+   * @param {string} format - 'mp3' or 'wav'
+   * @returns {string}
+   */
+  buildDownloadFilename(format) {
+    // Timestamp (local time, sortable)
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+
+    // Sanitize a string to kebab-case (max 30 chars)
+    const toKebab = (s, maxLen = 30) =>
+      s
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, maxLen) || null;
+
+    // Description: field value → phrase filename stem → 'program'
+    const descField = document.getElementById('program-description');
+    const rawDesc = descField?.value?.trim() || '';
+    const fallbackDesc = this.currentPhraseFileName
+      ? this.currentPhraseFileName.replace(/\.[^/.]+$/, '')
+      : '';
+    const desc = toKebab(rawDesc) || toKebab(fallbackDesc) || 'program';
+
+    // Voice: name only, no engine prefix
+    const engine = document.getElementById('tts-engine')?.value || 'openai';
+    let voice;
+    if (engine === 'openai') {
+      voice = document.getElementById('openai-voice')?.value || 'nova';
+    } else if (engine === 'google-cloud') {
+      const raw = document.getElementById('voice-name')?.value || 'google';
+      voice = toKebab(raw.replace(/[^a-z0-9]/gi, '-'), 24) || 'google';
+    } else {
+      voice = toKebab(engine, 20) || 'voice';
+    }
+
+    // Background audio
+    const audioSource = document.getElementById('audio-source')?.value || 'none';
+    let bg = 'nobg';
+    if (audioSource === 'sample') {
+      const sampleVal = document.getElementById('sample-audio-select')?.value || '';
+      bg = sampleVal ? sampleVal.replace(/_/g, '-') : 'nobg';
+    } else if (audioSource === 'file') {
+      const soundFiles = document.getElementById('sound-file')?.files;
+      if (soundFiles?.[0]) {
+        bg = toKebab(soundFiles[0].name.replace(/\.[^/.]+$/, ''), 20) || 'file';
+      }
+    }
+
+    const ext = format === 'mp3' ? 'mp3' : 'wav';
+    return `${ts}_${desc}_${voice}_${bg}.${ext}`;
+  }
+
   async handleDownload() {
     if (!this.currentAudioBuffer) {
       this.showError('No audio available to download');
@@ -1723,12 +1792,12 @@ export class AppController {
           }
         );
 
-        filename = `audio-program-${bitrate}kbps.mp3`;
+        filename = this.buildDownloadFilename('mp3');
         this.updateProgress(100, 'MP3 encoding complete!');
       } else {
         // Export as WAV (instant, no progress needed)
         blob = this.audioService.audioBufferToWav(this.currentAudioBuffer);
-        filename = 'audio-program.wav';
+        filename = this.buildDownloadFilename('wav');
       }
 
       // Save the file — use Save As dialog if supported, otherwise auto-download
@@ -1842,6 +1911,17 @@ export class AppController {
         fileUploadMode.style.display = 'block';
         textEditorMode.style.display = 'none';
       }
+    }
+
+    // Auto-populate program description from uploaded filename (when field is blank)
+    const phraseFileInput = document.getElementById('phrase-file');
+    const descField = document.getElementById('program-description');
+    if (phraseFileInput && descField) {
+      phraseFileInput.addEventListener('change', () => {
+        if (!descField.value.trim() && phraseFileInput.files[0]) {
+          descField.value = phraseFileInput.files[0].name.replace(/\.[^/.]+$/, '');
+        }
+      });
     }
 
     // Editor input - update stats
