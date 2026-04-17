@@ -591,12 +591,21 @@ describe('AppController', () => {
       expect(capturedFile.type).toBe('audio/mpeg');
     });
 
-    test('shows progress confirmation then hides it', async () => {
+    test('flashes Restore button green then reverts', async () => {
       controller.projectCache = { getProject: async () => makeProject() };
-      await controller.restoreProject('proj-1');
-      expect(controller.progressContainer.style.display).toBe('block');
+      const btn = document.createElement('button');
+      btn.textContent = 'Restore';
+      await controller.restoreProject('proj-1', btn);
+      expect(btn.textContent).toBe('✓ Restored');
+      expect(btn.style.color).toBe('white');
       flushTimeouts();
-      expect(controller.progressContainer.style.display).toBe('none');
+      expect(btn.textContent).toBe('Restore');
+      expect(btn.style.color).toBe('');
+    });
+
+    test('restores without error when no button is passed', async () => {
+      controller.projectCache = { getProject: async () => makeProject() };
+      await expect(controller.restoreProject('proj-1')).resolves.toBeUndefined();
     });
 
     test('handles project not found gracefully', async () => {
@@ -621,6 +630,120 @@ describe('AppController', () => {
       };
       await controller.restoreProject('proj-1');
       expect(document.getElementById('program-description').value).toBe('');
+    });
+  });
+
+  // ── createProjectCard ────────────────────────────────────────────────────
+
+  describe('createProjectCard', () => {
+    function makeFullProject(overrides = {}) {
+      return {
+        id: 'proj-1',
+        name: 'editor-program.txt',
+        programDescription: 'Morning Qi Gong',
+        ttsEngine: 'openai',
+        ttsOptions: { voice: 'nova', model: 'tts-1', speed: 1.0 },
+        backgroundSettings: { source: 'none', sampleName: '', attenuation: -6, fadeIn: 3000, fadeOut: 6000 },
+        backgroundMusic: null,
+        backgroundMusicName: null,
+        timestamp: Date.now(),
+        hasBackgroundMusic: false,
+        ...overrides,
+      };
+    }
+
+    beforeEach(() => {
+      // projectCache needs formatTimestamp
+      controller.projectCache = {
+        formatTimestamp: () => '2 days ago',
+      };
+    });
+
+    test('uses programDescription as title', () => {
+      const card = controller.createProjectCard(makeFullProject());
+      expect(card.querySelector('strong').textContent).toBe('Morning Qi Gong');
+    });
+
+    test('falls back to filename when description is blank and name is not generic', () => {
+      const card = controller.createProjectCard(
+        makeFullProject({ programDescription: '', name: 'sun-salutation.txt' })
+      );
+      expect(card.querySelector('strong').textContent).toBe('sun-salutation.txt');
+    });
+
+    test('falls back to "Untitled Program" when description blank and name is editor-program.txt', () => {
+      const card = controller.createProjectCard(
+        makeFullProject({ programDescription: '', name: 'editor-program.txt' })
+      );
+      expect(card.querySelector('strong').textContent).toBe('Untitled Program');
+    });
+
+    test('shows voice name capitalized in meta line', () => {
+      const card = controller.createProjectCard(makeFullProject());
+      expect(card.textContent).toContain('Voice: Nova');
+    });
+
+    test('shows Background: None when source is none', () => {
+      const card = controller.createProjectCard(makeFullProject());
+      expect(card.textContent).toContain('Background: None');
+    });
+
+    test('shows sample name in title case when source is sample', () => {
+      const card = controller.createProjectCard(
+        makeFullProject({
+          backgroundSettings: { source: 'sample', sampleName: 'lunar_new_year', attenuation: -6 },
+        })
+      );
+      expect(card.textContent).toContain('Background: Lunar New Year');
+    });
+
+    test('shows background music filename when source is file', () => {
+      const card = controller.createProjectCard(
+        makeFullProject({
+          backgroundSettings: { source: 'file', attenuation: -6 },
+          backgroundMusicName: 'my-track.mp3',
+        })
+      );
+      expect(card.textContent).toContain('Background: my-track.mp3');
+    });
+
+    test('shows timestamp in meta line', () => {
+      const card = controller.createProjectCard(makeFullProject());
+      expect(card.textContent).toContain('2 days ago');
+    });
+
+    test('shows speed when non-default', () => {
+      const card = controller.createProjectCard(
+        makeFullProject({ ttsOptions: { voice: 'nova', speed: 0.8 } })
+      );
+      expect(card.textContent).toContain('Speed: 0.8x');
+    });
+
+    test('does not show speed when default (1.0)', () => {
+      const card = controller.createProjectCard(makeFullProject());
+      expect(card.textContent).not.toContain('Speed:');
+    });
+
+    test('shows has-instructions flag when instructions present', () => {
+      const card = controller.createProjectCard(
+        makeFullProject({ ttsOptions: { voice: 'nova', speed: 1.0, instructions: 'Speak calmly.' } })
+      );
+      expect(card.textContent).toContain('Has instructions');
+    });
+
+    test('does not show has-instructions flag when no instructions', () => {
+      const card = controller.createProjectCard(makeFullProject());
+      expect(card.textContent).not.toContain('Has instructions');
+    });
+
+    test('Restore button triggers restoreProject with button reference', () => {
+      let capturedId = null;
+      let capturedBtn = null;
+      controller.restoreProject = (id, btn) => { capturedId = id; capturedBtn = btn; };
+      const card = controller.createProjectCard(makeFullProject());
+      card.querySelector('button').click();
+      expect(capturedId).toBe('proj-1');
+      expect(capturedBtn).toBeInstanceOf(HTMLButtonElement);
     });
   });
 

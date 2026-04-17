@@ -179,27 +179,72 @@ export class AppController {
 
     const info = document.createElement('div');
     info.style.cssText = 'flex: 1; min-width: 0;';
-    
-    const name = document.createElement('strong');
-    name.textContent = project.name;
-    name.style.cssText = 'display: block; margin-bottom: 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
-    
+
+    // Title: program description → uploaded filename (skip generic editor name) → "Untitled Program"
+    const title = document.createElement('strong');
+    let titleText = project.programDescription?.trim() || '';
+    if (!titleText && project.name && project.name !== 'editor-program.txt') {
+      titleText = project.name;
+    }
+    title.textContent = titleText || 'Untitled Program';
+    title.style.cssText = 'display: block; margin-bottom: 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+
+    // Voice display
+    let voiceDisplay = '';
+    if (project.ttsEngine === 'openai') {
+      const v = project.ttsOptions?.voice || '';
+      voiceDisplay = v.charAt(0).toUpperCase() + v.slice(1);
+    } else if (project.ttsEngine === 'google-cloud') {
+      voiceDisplay = project.ttsOptions?.voiceName || 'Google';
+    } else {
+      voiceDisplay = project.ttsEngine || 'Unknown';
+    }
+
+    // Background audio display
+    let bgDisplay = 'None';
+    const bg = project.backgroundSettings;
+    if (bg?.source === 'sample' && bg.sampleName) {
+      bgDisplay = bg.sampleName.replace(/[_-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    } else if (bg?.source === 'file') {
+      bgDisplay = project.backgroundMusicName || 'File';
+    } else if (!bg && project.backgroundMusicName) {
+      // Old project format — infer from music name presence
+      bgDisplay = project.backgroundMusicName;
+    }
+
+    // Primary meta line
     const meta = document.createElement('small');
-    meta.style.opacity = '0.7';
-    const musicInfo = project.hasBackgroundMusic ? ` • Music: ${project.backgroundMusicName || 'Yes'}` : '';
-    meta.textContent = `${this.projectCache.formatTimestamp(project.timestamp)} • ${project.ttsEngine}${musicInfo}`;
-    
-    info.appendChild(name);
+    meta.style.cssText = 'display: block; opacity: 0.7; margin-bottom: 0.1rem;';
+    meta.textContent = `Voice: ${voiceDisplay} • Background: ${bgDisplay} • ${this.projectCache.formatTimestamp(project.timestamp)}`;
+
+    info.appendChild(title);
     info.appendChild(meta);
 
+    // Optional secondary line for non-default settings
+    const extras = [];
+    const speed = project.ttsOptions?.speed;
+    if (speed && speed !== 1.0) extras.push(`Speed: ${speed}x`);
+    const attenuation = bg?.attenuation;
+    if (bg?.source !== 'none' && attenuation !== undefined && attenuation !== -6) {
+      extras.push(`Volume: ${attenuation}dB`);
+    }
+    if (project.ttsOptions?.instructions) extras.push('📝 Has instructions');
+
+    if (extras.length > 0) {
+      const extrasEl = document.createElement('small');
+      extrasEl.style.cssText = 'display: block; opacity: 0.55;';
+      extrasEl.textContent = extras.join('  |  ');
+      info.appendChild(extrasEl);
+    }
+
     const actions = document.createElement('div');
-    actions.style.cssText = 'display: flex; gap: 0.5rem;';
+    actions.style.cssText = 'display: flex; gap: 0.5rem; align-items: center;';
 
     const restoreBtn = document.createElement('button');
     restoreBtn.textContent = 'Restore';
     restoreBtn.className = 'secondary';
     restoreBtn.style.cssText = 'margin: 0; padding: 0.25rem 0.75rem; font-size: 0.875rem;';
-    restoreBtn.onclick = () => this.restoreProject(project.id);
+    restoreBtn.onclick = () => this.restoreProject(project.id, restoreBtn);
 
     const deleteBtn = document.createElement('button');
     deleteBtn.textContent = '×';
@@ -220,7 +265,7 @@ export class AppController {
   /**
    * Restore a project
    */
-  async restoreProject(projectId) {
+  async restoreProject(projectId, btn = null) {
     try {
       const project = await this.projectCache.getProject(projectId);
       if (!project) {
@@ -331,13 +376,16 @@ export class AppController {
         if (bitrateSelect) bitrateSelect.value = project.exportSettings.bitrate || 192;
       }
 
-      // Show non-blocking confirmation in progress area
-      if (this.progressContainer) {
-        this.progressContainer.style.display = 'block';
-        this.updateProgress(100, `✓ Project "${project.name}" restored — click Generate Audio Program to recreate it.`);
+      // Show feedback on the Restore button
+      if (btn) {
+        btn.textContent = '✓ Restored';
+        btn.style.cssText += '; background: #2d9a4e; border-color: #2d9a4e; color: white;';
         setTimeout(() => {
-          this.progressContainer.style.display = 'none';
-        }, 4000);
+          btn.textContent = 'Restore';
+          btn.style.background = '';
+          btn.style.borderColor = '';
+          btn.style.color = '';
+        }, 2000);
       }
     } catch (error) {
       console.error('Failed to restore project:', error);
