@@ -760,7 +760,7 @@ describe('AppController', () => {
       document.getElementById('openai-voice').value = 'nova';
       document.getElementById('audio-source').value = 'none';
       const name = controller.buildDownloadFilename('mp3');
-      expect(name).toMatch(/^[\d]{8}-[\d]{6}_morning-qi-gong_nova_nobg\.mp3$/);
+      expect(name).toMatch(/^audio-program_[\d]{8}-[\d]{6}_morning-qi-gong_nova_nobg\.mp3$/);
     });
 
     test('falls back to phrase filename stem when description is blank', () => {
@@ -835,7 +835,7 @@ describe('AppController', () => {
       document.getElementById('openai-voice').value = 'nova';
       document.getElementById('audio-source').value = 'none';
       const name = controller.buildDownloadFilename('mp3');
-      expect(name).toMatch(/^\d{8}-\d{6}_/);
+      expect(name).toMatch(/^audio-program_\d{8}-\d{6}_/);
     });
   });
 
