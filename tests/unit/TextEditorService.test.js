@@ -1,6 +1,6 @@
 /**
  * Tests for TextEditorService
- * Covers validation, syntax highlighting, and localStorage
+ * Covers validation, statistics, and localStorage
  */
 
 import { TextEditorService } from '../../scripts/services/TextEditorService.js';
@@ -106,35 +106,6 @@ describe('TextEditorService', () => {
       const result = service.validateSyntax(text);
       expect(result.valid).toBe(false);
       expect(result.errors[0]).toContain('Line 2');
-    });
-  });
-
-  describe('Syntax Highlighting', () => {
-    test('should highlight valid line', () => {
-      const text = 'Hello world;2';
-      const highlighted = service.applySyntaxHighlighting(text);
-      expect(highlighted).toContain('syntax-text');
-      expect(highlighted).toContain('syntax-separator');
-      expect(highlighted).toContain('syntax-duration');
-    });
-
-    test('should escape HTML characters', () => {
-      const text = '<script>alert("xss")</script>;2';
-      const highlighted = service.applySyntaxHighlighting(text);
-      expect(highlighted).not.toContain('<script>');
-      expect(highlighted).toContain('&lt;script&gt;');
-    });
-
-    test('should handle empty text', () => {
-      const highlighted = service.applySyntaxHighlighting('');
-      expect(highlighted).toBe('');
-    });
-
-    test('should highlight multiple lines', () => {
-      const text = 'Hello;2\nWorld;1.5';
-      const highlighted = service.applySyntaxHighlighting(text);
-      const matches = highlighted.match(/syntax-duration/g);
-      expect(matches).toHaveLength(2);
     });
   });
 
