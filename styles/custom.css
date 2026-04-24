@@ -109,33 +109,6 @@ footer {
   outline: none;
 }
 
-/* Syntax highlighting for format: text;seconds */
-.syntax-text {
-  color: #009900;
-}
-
-[data-theme="dark"] .syntax-text {
-  color: #66ff66;
-}
-
-.syntax-separator {
-  color: #666666;
-  font-weight: bold;
-}
-
-[data-theme="dark"] .syntax-separator {
-  color: #999999;
-}
-
-.syntax-duration {
-  color: #cc6600;
-  font-weight: bold;
-}
-
-[data-theme="dark"] .syntax-duration {
-  color: #ffaa66;
-}
-
 .editor-stats {
   display: flex;
   justify-content: space-between;
