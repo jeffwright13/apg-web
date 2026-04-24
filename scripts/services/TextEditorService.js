@@ -50,30 +50,6 @@ export class TextEditorService {
   }
 
   /**
-   * Apply syntax highlighting to text
-   * Highlights text and duration in format: text;seconds
-   * @param {string} text - Raw text
-   * @returns {string} HTML with syntax highlighting
-   */
-  applySyntaxHighlighting(text) {
-    if (!text) return '';
-    
-    // Escape HTML
-    const escaped = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    
-    // Highlight lines in format: text;duration
-    const highlighted = escaped.replace(
-      /^(.+?)(;\s*)(\d+(?:\.\d+)?)\s*$/gm,
-      '<span class="syntax-text">$1</span><span class="syntax-separator">$2</span><span class="syntax-duration">$3</span>'
-    );
-    
-    return highlighted;
-  }
-
-  /**
    * Count lines and characters
    * @param {string} text - Text content
    * @returns {{lines: number, characters: number, words: number}}
@@ -141,16 +117,4 @@ export class TextEditorService {
     };
   }
 
-  /**
-   * Generate line numbers HTML
-   * @param {number} lineCount - Number of lines
-   * @returns {string} HTML for line numbers
-   */
-  generateLineNumbers(lineCount) {
-    const numbers = [];
-    for (let i = 1; i <= lineCount; i++) {
-      numbers.push(`<div class="line-number">${i}</div>`);
-    }
-    return numbers.join('');
-  }
 }
