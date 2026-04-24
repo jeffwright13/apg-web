@@ -1234,10 +1234,116 @@ export class AppController {
     return speechBlob;
   }
 
+  /**
+   * Build engine-specific TTS options from form data.
+   * @param {string} engine - TTS engine name
+   * @param {FormData} formData - Current form data
+   * @returns {Object} Options object suitable for the given engine's adapter
+   */
+  buildTtsOptions(engine, formData) {
+    if (engine === 'gtts') {
+      return {
+        tld: formData.get('gtts-accent') || 'com',
+        lang: 'en',
+        slow: formData.get('gtts-slow-speech') === 'on',
+      };
+    }
+
+    if (engine === 'google-cloud') {
+      return {
+        voiceName: formData.get('google-voice') || 'en-US-Neural2-C',
+        languageCode: 'en-US',
+        speakingRate: parseFloat(formData.get('speaking-rate')) || 1.0,
+        pitch: parseFloat(formData.get('pitch')) || 0.0,
+        volumeGainDb: parseFloat(formData.get('volume-gain')) || 0.0,
+        audioEncoding: 'LINEAR16',
+        sampleRateHertz: 24000,
+      };
+    }
+
+    if (engine === 'openai') {
+      const model = formData.get('openai-model') || 'tts-1';
+      const ttsOptions = {
+        voice: formData.get('openai-voice') || 'nova',
+        model,
+        speed: parseFloat(formData.get('openai-speed')) || 1.0,
+        format: 'wav',
+      };
+      if (model === 'gpt-4o-mini-tts') {
+        const instructions = formData.get('openai-voice-instructions') || '';
+        if (instructions.trim()) ttsOptions.instructions = instructions.trim();
+      }
+      return ttsOptions;
+    }
+
+    return {};
+  }
+
+  /**
+   * Core audio generation pipeline shared by all API-based TTS engines.
+   * Generates speech per phrase, concatenates buffers, optionally mixes
+   * background audio, then stores the result and shows the output UI.
+   * @param {Array} phrases - Parsed phrase objects
+   * @param {string} ttsEngine - Engine name
+   * @param {Object} ttsOptions - Engine-specific options
+   * @param {File|null} soundFile - Optional background audio file
+   * @param {FormData} formData - Full form data (for mixing parameters)
+   */
+  async generateAndFinalize(phrases, ttsEngine, ttsOptions, soundFile, formData) {
+    this.updateProgress(20, 'Generating speech...');
+    const audioBuffers = [];
+
+    for (let i = 0; i < phrases.length; i++) {
+      if (this.generationCancelled) {
+        throw new Error('Generation cancelled by user');
+      }
+
+      const phrase = phrases[i];
+      const progress = 20 + (60 * (i + 1)) / phrases.length;
+      this.updateProgress(progress, `Generating phrase ${i + 1}/${phrases.length}...`);
+
+      const speechBlob = await this.generateOrGetCachedSpeech(phrase, ttsEngine, ttsOptions);
+
+      const phraseText = phrase.phrase || phrase.text || '';
+      // eslint-disable-next-line no-console
+      console.log(`🎵 About to decode phrase: "${phraseText.substring(0, 50)}"`);
+      const arrayBuffer = await speechBlob.arrayBuffer();
+      const audioBuffer = await this.audioService.decodeAudioData(arrayBuffer);
+      audioBuffers.push(audioBuffer);
+
+      if (phrase.duration > 0) {
+        audioBuffers.push(this.audioService.createSilence(phrase.duration));
+      }
+    }
+
+    this.updateProgress(85, 'Combining audio...');
+    let finalBuffer = this.audioService.concatenateBuffers(audioBuffers);
+
+    if (soundFile && soundFile.size > 0) {
+      this.updateProgress(90, 'Mixing with background sound...');
+      const soundArrayBuffer = await this.fileService.readAudioFile(soundFile);
+      const backgroundBuffer = await this.audioService.decodeAudioData(soundArrayBuffer);
+
+      const attenuation = parseInt(formData.get('attenuation')) ?? 0;
+      const fadeIn = parseInt(formData.get('fade-in')) ?? 3000;
+      const fadeOut = parseInt(formData.get('fade-out')) ?? 6000;
+
+      finalBuffer = this.audioService.mixBuffers(finalBuffer, backgroundBuffer, { attenuation });
+      finalBuffer = this.audioService.applyFades(finalBuffer, { fadeIn, fadeOut });
+    }
+
+    this.updateProgress(95, 'Finalizing...');
+    this.currentAudioBuffer = finalBuffer;
+    this.currentAudioBlob = this.audioService.audioBufferToWav(finalBuffer);
+
+    this.updateProgress(100, 'Complete!');
+    await this.saveCurrentProject();
+    this.showOutput();
+  }
+
   async handleSubmit(event) {
     event.preventDefault();
 
-    // Reset cancellation flag
     this.generationCancelled = false;
     this.isGenerating = true;
 
@@ -1250,7 +1356,6 @@ export class AppController {
       this.generateBtn.disabled = true;
       this.stopGenerationBtn.style.display = 'block';
 
-      // Get form data
       const formData = new FormData(this.form);
       const phraseFile = formData.get('phrase-file');
       const soundFile = formData.get('sound-file');
@@ -1261,34 +1366,30 @@ export class AppController {
       let phraseFileName;
 
       if (this.inputMode === 'editor') {
-        // Get content from editor
         const editor = document.getElementById('apg-editor');
         phraseContent = editor ? editor.value : '';
-        
+
         if (!phraseContent || !phraseContent.trim()) {
           this.showError('Please enter program text in the editor');
           return;
         }
-        
+
         phraseFileName = 'editor-program.txt';
       } else {
-        // Get content from file upload
         if (!phraseFile || phraseFile.size === 0) {
           this.showError('Please select a phrase file');
           return;
         }
 
-        // Validate files BEFORE generating any TTS (to avoid wasting API calls)
         this.updateProgress(5, 'Validating files...');
         this.fileService.validateFileSize(phraseFile, 10);
-        
-        // Read phrase file
+
         this.updateProgress(10, 'Reading phrase file...');
         phraseContent = await this.fileService.readTextFile(phraseFile);
         phraseFileName = phraseFile.name;
       }
-      
-      // Validate background audio file format early (before TTS generation)
+
+      // Validate background audio format early (before any API calls)
       if (soundFile && soundFile.size > 0) {
         try {
           await this.fileService.readAudioFile(soundFile);
@@ -1298,351 +1399,39 @@ export class AppController {
         }
       }
 
-      // Parse phrase content
       this.updateProgress(10, 'Parsing program...');
       const phrases = parseTextFile(phraseContent);
 
-      // Store file names for project saving
       this.currentPhraseFileName = phraseFileName;
       this.currentPhrases = phrases;
       this.currentBackgroundMusicFile = soundFile && soundFile.size > 0 ? soundFile : null;
 
-      // Set TTS engine
       this.ttsService.setEngine(ttsEngine);
 
-      // Check if mixing/export is requested with Web Speech API (safety check)
-      if (ttsEngine === 'web-speech' && soundFile && soundFile.size > 0) {
-        this.showError(
-          'Background mixing is not supported with Web Speech API. Please use a premium TTS engine (e.g. OpenAI or Google Cloud) for mixing and export features.'
-        );
-        return;
-      }
-
-      // Handle Web Speech API (playback only)
+      // Web Speech API: playback only, no export or mixing
       if (ttsEngine === 'web-speech') {
+        if (soundFile && soundFile.size > 0) {
+          this.showError(
+            'Background mixing is not supported with Web Speech API. Please use a premium TTS engine (e.g. OpenAI or Google Cloud) for mixing and export features.'
+          );
+          return;
+        }
+
         this.updateProgress(100, 'Ready to play!');
-
-        // Get Web Speech API settings
-        const voiceName = formData.get('web-speech-voice') || '';
-        const rate = parseFloat(formData.get('web-speech-rate')) || 1.0;
-        const pitch = parseFloat(formData.get('web-speech-pitch')) || 1.0;
-        const volume = parseFloat(formData.get('web-speech-volume')) || 1.0;
-
-        // Store phrases and options for playback
-        this.currentPhrases = phrases;
         this.currentOptions = {
-          voiceName,
-          rate,
-          pitch,
-          volume
+          voiceName: formData.get('web-speech-voice') || '',
+          rate: parseFloat(formData.get('web-speech-rate')) || 1.0,
+          pitch: parseFloat(formData.get('web-speech-pitch')) || 1.0,
+          volume: parseFloat(formData.get('web-speech-volume')) || 1.0,
         };
-
         this.showWebSpeechControls();
         return;
       }
 
-      // Handle gTTS (Google Translate TTS)
-      if (ttsEngine === 'gtts') {
-        const tld = formData.get('gtts-accent') || 'com';
-        const slowSpeech = formData.get('gtts-slow-speech') === 'on';
+      // API-based engines (gtts, google-cloud, openai) share the same pipeline
+      const ttsOptions = this.buildTtsOptions(ttsEngine, formData);
+      await this.generateAndFinalize(phrases, ttsEngine, ttsOptions, soundFile, formData);
 
-        const ttsOptions = {
-          tld,
-          lang: 'en',
-          slow: slowSpeech,
-        };
-
-        // Generate speech for each phrase
-        this.updateProgress(20, 'Generating speech...');
-        const audioBuffers = [];
-
-        for (let i = 0; i < phrases.length; i++) {
-          // Check for cancellation
-          if (this.generationCancelled) {
-            throw new Error('Generation cancelled by user');
-          }
-
-          const phrase = phrases[i];
-          const progress = 20 + (60 * (i + 1)) / phrases.length;
-          this.updateProgress(
-            progress,
-            `Generating phrase ${i + 1}/${phrases.length}...`
-          );
-
-          // Generate speech (with caching)
-          const speechBlob = await this.generateOrGetCachedSpeech(
-            phrase,
-            ttsEngine,
-            ttsOptions
-          );
-
-          // Convert to AudioBuffer
-          const phraseText = phrase.phrase || phrase.text || '';
-          // eslint-disable-next-line no-console
-          console.log(`🎵 About to decode phrase: "${phraseText.substring(0, 50)}"`);
-          const arrayBuffer = await speechBlob.arrayBuffer();
-          const audioBuffer =
-            await this.audioService.decodeAudioData(arrayBuffer);
-          audioBuffers.push(audioBuffer);
-
-          // Add silence after phrase
-          if (phrase.duration > 0) {
-            const silence = this.audioService.createSilence(phrase.duration);
-            audioBuffers.push(silence);
-          }
-        }
-
-        // Concatenate all audio
-        this.updateProgress(85, 'Combining audio...');
-        let finalBuffer = this.audioService.concatenateBuffers(audioBuffers);
-
-        // Mix with background sound if provided
-        if (soundFile && soundFile.size > 0) {
-          this.updateProgress(90, 'Mixing with background sound...');
-          const soundArrayBuffer =
-            await this.fileService.readAudioFile(soundFile);
-          const backgroundBuffer =
-            await this.audioService.decodeAudioData(soundArrayBuffer);
-
-
-          const attenuation = parseInt(formData.get('attenuation')) ?? 0;
-          const fadeIn = parseInt(formData.get('fade-in')) ?? 3000;
-          const fadeOut = parseInt(formData.get('fade-out')) ?? 6000;
-
-          finalBuffer = this.audioService.mixBuffers(
-            finalBuffer,
-            backgroundBuffer,
-            { attenuation }
-          );
-
-          // Apply fades to mixed audio
-          finalBuffer = this.audioService.applyFades(finalBuffer, {
-            fadeIn,
-            fadeOut,
-          });
-        }
-
-        // Store audio buffer and convert to WAV blob
-        this.updateProgress(95, 'Finalizing...');
-        this.currentAudioBuffer = finalBuffer;
-        this.currentAudioBlob = this.audioService.audioBufferToWav(finalBuffer);
-
-        // Show output
-        this.updateProgress(100, 'Complete!');
-        
-        // Save project for future restoration
-        await this.saveCurrentProject();
-        
-        this.showOutput();
-        return;
-      }
-
-      // Handle Google Cloud TTS (with mixing/export support)
-      if (ttsEngine === 'google-cloud') {
-        // Get Google Cloud TTS options
-        const voiceName = formData.get('google-voice') || 'en-US-Neural2-C';
-        const speakingRate =
-          parseFloat(formData.get('speaking-rate')) || 1.0;
-        const pitch = parseFloat(formData.get('pitch')) || 0.0;
-        const volumeGainDb = parseFloat(formData.get('volume-gain')) || 0.0;
-
-        const ttsOptions = {
-          voiceName,
-          languageCode: 'en-US',
-          speakingRate,
-          pitch,
-          volumeGainDb,
-          audioEncoding: 'LINEAR16',
-          sampleRateHertz: 24000,
-        };
-
-        // Generate speech for each phrase
-        this.updateProgress(20, 'Generating speech...');
-        const audioBuffers = [];
-
-        for (let i = 0; i < phrases.length; i++) {
-          // Check for cancellation
-          if (this.generationCancelled) {
-            throw new Error('Generation cancelled by user');
-          }
-
-          const phrase = phrases[i];
-          const progress = 20 + (60 * (i + 1)) / phrases.length;
-          this.updateProgress(
-            progress,
-            `Generating phrase ${i + 1}/${phrases.length}...`
-          );
-
-          // Generate speech (with caching)
-          const speechBlob = await this.generateOrGetCachedSpeech(
-            phrase,
-            ttsEngine,
-            ttsOptions
-          );
-
-          // Convert to AudioBuffer
-          const phraseText = phrase.phrase || phrase.text || '';
-          // eslint-disable-next-line no-console
-          console.log(`🎵 About to decode phrase: "${phraseText.substring(0, 50)}"`);
-          const arrayBuffer = await speechBlob.arrayBuffer();
-          const audioBuffer =
-            await this.audioService.decodeAudioData(arrayBuffer);
-          audioBuffers.push(audioBuffer);
-
-          // Add silence after phrase
-          if (phrase.duration > 0) {
-            const silence = this.audioService.createSilence(phrase.duration);
-            audioBuffers.push(silence);
-          }
-        }
-
-        // Concatenate all audio
-        this.updateProgress(85, 'Combining audio...');
-        let finalBuffer = this.audioService.concatenateBuffers(audioBuffers);
-
-        // Mix with background sound if provided
-        if (soundFile && soundFile.size > 0) {
-          this.updateProgress(90, 'Mixing with background sound...');
-          const soundArrayBuffer =
-            await this.fileService.readAudioFile(soundFile);
-          const backgroundBuffer =
-            await this.audioService.decodeAudioData(soundArrayBuffer);
-
-
-          const attenuation = parseInt(formData.get('attenuation')) ?? 0;
-          const fadeIn = parseInt(formData.get('fade-in')) ?? 3000;
-          const fadeOut = parseInt(formData.get('fade-out')) ?? 6000;
-
-          finalBuffer = this.audioService.mixBuffers(
-            finalBuffer,
-            backgroundBuffer,
-            { attenuation }
-          );
-
-          // Apply fades to mixed audio
-          finalBuffer = this.audioService.applyFades(finalBuffer, {
-            fadeIn,
-            fadeOut,
-          });
-        }
-
-        // Store audio buffer and convert to WAV blob
-        this.updateProgress(95, 'Finalizing...');
-        this.currentAudioBuffer = finalBuffer;
-        this.currentAudioBlob = this.audioService.audioBufferToWav(finalBuffer);
-
-        // Show output
-        this.updateProgress(100, 'Complete!');
-        
-        // Save project for future restoration
-        await this.saveCurrentProject();
-        
-        this.showOutput();
-        return;
-      }
-
-      // Handle OpenAI TTS (with mixing/export support)
-      if (ttsEngine === 'openai') {
-        // Get OpenAI TTS options
-        const voice = formData.get('openai-voice') || 'nova';
-        const model = formData.get('openai-model') || 'tts-1';
-        const speed = parseFloat(formData.get('openai-speed')) || 1.0;
-
-        const ttsOptions = {
-          voice,
-          model,
-          speed,
-          format: 'wav',
-        };
-        if (model === 'gpt-4o-mini-tts') {
-          const instructions = formData.get('openai-voice-instructions') || '';
-          if (instructions.trim()) ttsOptions.instructions = instructions.trim();
-        }
-
-        // Generate speech for each phrase
-        this.updateProgress(20, 'Generating speech...');
-        const audioBuffers = [];
-
-        for (let i = 0; i < phrases.length; i++) {
-          // Check for cancellation
-          if (this.generationCancelled) {
-            throw new Error('Generation cancelled by user');
-          }
-
-          const phrase = phrases[i];
-          const progress = 20 + (60 * (i + 1)) / phrases.length;
-          this.updateProgress(
-            progress,
-            `Generating phrase ${i + 1}/${phrases.length}...`
-          );
-
-          // Generate speech (with caching)
-          const speechBlob = await this.generateOrGetCachedSpeech(
-            phrase,
-            ttsEngine,
-            ttsOptions
-          );
-
-          // Convert to AudioBuffer
-          const phraseText = phrase.phrase || phrase.text || '';
-          // eslint-disable-next-line no-console
-          console.log(`🎵 About to decode phrase: "${phraseText.substring(0, 50)}"`);
-          const arrayBuffer = await speechBlob.arrayBuffer();
-          const audioBuffer =
-            await this.audioService.decodeAudioData(arrayBuffer);
-          audioBuffers.push(audioBuffer);
-
-          // Add silence after phrase
-          if (phrase.duration > 0) {
-            const silence = this.audioService.createSilence(phrase.duration);
-            audioBuffers.push(silence);
-          }
-        }
-
-        // Concatenate all audio
-        this.updateProgress(85, 'Combining audio...');
-        let finalBuffer = this.audioService.concatenateBuffers(audioBuffers);
-
-        // Mix with background sound if provided
-        if (soundFile && soundFile.size > 0) {
-          this.updateProgress(90, 'Mixing with background sound...');
-          const soundArrayBuffer =
-            await this.fileService.readAudioFile(soundFile);
-          const backgroundBuffer =
-            await this.audioService.decodeAudioData(soundArrayBuffer);
-
-
-          const attenuation = parseInt(formData.get('attenuation')) ?? 0;
-          const fadeIn = parseInt(formData.get('fade-in')) ?? 3000;
-          const fadeOut = parseInt(formData.get('fade-out')) ?? 6000;
-
-          finalBuffer = this.audioService.mixBuffers(
-            finalBuffer,
-            backgroundBuffer,
-            { attenuation }
-          );
-
-          // Apply fades to mixed audio
-          finalBuffer = this.audioService.applyFades(finalBuffer, {
-            fadeIn,
-            fadeOut,
-          });
-        }
-
-        // Store audio buffer and convert to WAV blob
-        this.updateProgress(95, 'Finalizing...');
-        this.currentAudioBuffer = finalBuffer;
-        this.currentAudioBlob = this.audioService.audioBufferToWav(finalBuffer);
-
-        // Show output
-        this.updateProgress(100, 'Complete!');
-        
-        // Save project for future restoration
-        await this.saveCurrentProject();
-        
-        this.showOutput();
-        return;
-      }
     } catch (error) {
       if (error.message !== 'Generation cancelled by user') {
         this.showError(error.message);
