@@ -2,8 +2,8 @@
 
 Browser-based audio program generator - creates spoken audio from text with optional background music.
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/jeffwright13/apg-web/releases/tag/v1.0.0)
-[![Tests](https://img.shields.io/badge/tests-161%20passing-brightgreen.svg)](https://github.com/jeffwright13/apg-web)
+[![Version](https://img.shields.io/badge/version-1.9.10-blue.svg)](https://github.com/jeffwright13/apg-web/releases/tag/v1.9.10)
+[![Tests](https://img.shields.io/badge/tests-315%20passing-brightgreen.svg)](https://github.com/jeffwright13/apg-web)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## Features
@@ -32,27 +32,15 @@ Browser-based audio program generator - creates spoken audio from text with opti
 4. Open `http://localhost:8080` in your browser
 5. Upload a phrase file and generate audio!
 
-## What's New in v1.0.0 🎉
+## What's New in v1.9.10
 
-This is the first stable production release! Major improvements include:
+### Code Quality & Bug Fixes
+- **Bug fix**: Background audio settings (`attenuation`, `fade-in`, `fade-out`) now correctly preserve zero values when saving projects (was coercing `0` to default via `||` instead of `??`)
+- **Refactor**: Consolidated three near-identical TTS engine pipelines in `handleSubmit` into shared `buildTtsOptions()` and `generateAndFinalize()` methods — eliminates ~280 lines of duplicated code
+- **Cleanup**: Removed dead `applySyntaxHighlighting()` and `generateLineNumbers()` methods and their associated CSS rules
+- **Tests**: 315 passing tests (up from 161 at v1.0.0), covering all new and refactored logic
 
-### Reliability & Error Handling
-- **Automatic Retry Logic**: Up to 3 retry attempts with exponential backoff (1s, 2s, 3s) for failed API requests
-- **Smart Error Detection**: Detects and handles empty responses, network issues, and API errors gracefully
-- **Detailed Logging**: Console logs show exactly what's happening during audio generation
-- **Better Error Messages**: Clear, actionable error messages with phrase context
-
-### User Experience
-- **Clear Cache Button**: Easy one-click cache management in the Output section
-- **Improved Reliability**: Successfully handles intermittent API issues and network problems
-- **Progress Tracking**: See which phrases are being generated and cached
-
-### Testing & Quality
-- **Comprehensive Test Suite**: 161 tests covering all major functionality
-- **100% Test Pass Rate**: All tests passing with proper mocking
-- **Better Code Quality**: ESLint and Prettier enforced via pre-commit hooks
-
-See the [full changelog](https://github.com/jeffwright13/apg-web/releases/tag/v1.0.0) for details.
+See the [full changelog](https://github.com/jeffwright13/apg-web/releases/tag/v1.9.10) for details.
 
 ## Text-to-Speech Engines
 
@@ -80,9 +68,7 @@ See the [full changelog](https://github.com/jeffwright13/apg-web/releases/tag/v1
 
 ### Google Cloud Text-to-Speech
 
-**High quality, generous free tier, complex setup**
-
-**High quality, requires API key and billing setup**
+**High quality, generous free tier, requires API key and billing setup**
 
 - 💰 **Cost**: Free tier (1M characters/month), then $16/1M characters
 - 🔑 **Setup Required**:
@@ -247,30 +233,6 @@ See the [full changelog](https://github.com/jeffwright13/apg-web/releases/tag/v1
 
 ---
 
-### Microsoft Edge TTS Setup (Alternative - Coming Soon)
-
-**Free alternative with no API key required**
-
-Microsoft Edge TTS is an unofficial API that provides free, high-quality neural voices without requiring an API key or billing setup.
-
-**Status**: Implementation planned for future release
-
-**Advantages**:
-- ✅ Completely free
-- ✅ No API key required
-- ✅ No billing setup needed
-- ✅ Excellent voice quality (Neural voices)
-- ✅ Works from browser
-
-**Limitations**:
-- ⚠️ Unofficial API (not officially supported by Microsoft)
-- ⚠️ Could potentially be rate-limited or discontinued
-- ⚠️ Fewer voice options than Google Cloud TTS
-
-**When available**, this will be a great option for users who want high-quality TTS without the API key setup process.
-
----
-
 ### Troubleshooting
 
 #### "Invalid API key" error
@@ -389,23 +351,6 @@ The app supports all common audio formats via the Web Audio API:
 ### Output Format
 
 Generated audio is always exported as **WAV** (uncompressed) for maximum quality and compatibility with audio editing software.
-
----
-
-## Phrase File Format
-
-Create a text file with phrases and pause durations:
-
-```
-First phrase; 2
-Second phrase; 5
-*; 3
-Third phrase; 0
-```
-
-- Each line: `phrase; duration_in_seconds`
-- Use `*` for silence
-- Duration can be decimal (e.g., `2.5`)
 
 ## Development
 
