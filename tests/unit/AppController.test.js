@@ -839,6 +839,129 @@ describe('AppController', () => {
     });
   });
 
+  // ── saveCurrentProject — backgroundSettings nullish coalescing ───────────
+  //
+  // Regression tests for the || vs ?? bug: zero-value fields (e.g. fadeIn=0,
+  // fadeOut=0, attenuation=0) must be persisted as 0, not replaced by defaults.
+
+  describe('saveCurrentProject — backgroundSettings', () => {
+    function setupSaveDOM() {
+      document.body.innerHTML += `
+        <input id="program-description" type="text" value="test program" />
+        <select id="tts-engine"><option value="openai" selected>OpenAI</option></select>
+        <select id="openai-voice"><option value="nova" selected>Nova</option></select>
+        <select id="openai-model"><option value="tts-1" selected>TTS-1</option></select>
+        <input id="openai-speed" type="range" value="1.0" />
+        <textarea id="openai-voice-instructions"></textarea>
+        <select id="audio-source"><option value="none" selected>None</option></select>
+        <select id="sample-audio-select"><option value="" selected></option></select>
+        <input id="attenuation" type="number" value="-6" />
+        <input id="fade-in" type="number" value="3000" />
+        <input id="fade-out" type="number" value="6000" />
+        <select id="export-format"><option value="mp3" selected>MP3</option></select>
+        <select id="mp3-bitrate"><option value="192" selected>192</option></select>
+      `;
+    }
+
+    function makeFormWithValues({ attenuation, fadeIn, fadeOut }) {
+      document.getElementById('attenuation').value = String(attenuation);
+      document.getElementById('fade-in').value = String(fadeIn);
+      document.getElementById('fade-out').value = String(fadeOut);
+    }
+
+    beforeEach(() => {
+      setupSaveDOM();
+      controller.form = { elements: {} };
+      // Minimal FormData shim that reads from the live DOM inputs
+      global.FormData = class {
+        constructor(form) { void form; }
+        get(name) {
+          const el = document.getElementById(
+            name === 'fade-in' ? 'fade-in' :
+            name === 'fade-out' ? 'fade-out' :
+            name
+          );
+          return el ? el.value : null;
+        }
+      };
+      controller.currentPhraseFileName = 'test.txt';
+      controller.currentPhrases = [{ phrase: 'Hello', duration: 2 }];
+      controller.currentBackgroundMusicFile = null;
+    });
+
+    test('saves attenuation of -6 (default HTML value) correctly', async () => {
+      let saved = null;
+      controller.projectCache = {
+        init: async () => {},
+        saveProject: async (p) => { saved = p; },
+        listProjects: async () => [],
+      };
+      makeFormWithValues({ attenuation: -6, fadeIn: 3000, fadeOut: 6000 });
+
+      await controller.saveCurrentProject();
+
+      expect(saved.backgroundSettings.attenuation).toBe(-6);
+    });
+
+    test('saves attenuation of 0 (not replaced by default)', async () => {
+      let saved = null;
+      controller.projectCache = {
+        init: async () => {},
+        saveProject: async (p) => { saved = p; },
+        listProjects: async () => [],
+      };
+      makeFormWithValues({ attenuation: 0, fadeIn: 3000, fadeOut: 6000 });
+
+      await controller.saveCurrentProject();
+
+      expect(saved.backgroundSettings.attenuation).toBe(0);
+    });
+
+    test('saves fadeIn of 0 (not replaced by 3000 default)', async () => {
+      let saved = null;
+      controller.projectCache = {
+        init: async () => {},
+        saveProject: async (p) => { saved = p; },
+        listProjects: async () => [],
+      };
+      makeFormWithValues({ attenuation: -6, fadeIn: 0, fadeOut: 6000 });
+
+      await controller.saveCurrentProject();
+
+      expect(saved.backgroundSettings.fadeIn).toBe(0);
+    });
+
+    test('saves fadeOut of 0 (not replaced by 6000 default)', async () => {
+      let saved = null;
+      controller.projectCache = {
+        init: async () => {},
+        saveProject: async (p) => { saved = p; },
+        listProjects: async () => [],
+      };
+      makeFormWithValues({ attenuation: -6, fadeIn: 3000, fadeOut: 0 });
+
+      await controller.saveCurrentProject();
+
+      expect(saved.backgroundSettings.fadeOut).toBe(0);
+    });
+
+    test('saves typical non-zero non-default attenuation correctly', async () => {
+      let saved = null;
+      controller.projectCache = {
+        init: async () => {},
+        saveProject: async (p) => { saved = p; },
+        listProjects: async () => [],
+      };
+      makeFormWithValues({ attenuation: -12, fadeIn: 1500, fadeOut: 4000 });
+
+      await controller.saveCurrentProject();
+
+      expect(saved.backgroundSettings.attenuation).toBe(-12);
+      expect(saved.backgroundSettings.fadeIn).toBe(1500);
+      expect(saved.backgroundSettings.fadeOut).toBe(4000);
+    });
+  });
+
   // ── setupSliderValueDisplays ──────────────────────────────────────────────
 
   describe('setupSliderValueDisplays', () => {
