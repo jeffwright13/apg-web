@@ -475,9 +475,9 @@ export class AppController {
       const backgroundSettings = {
         source: formData.get('audio-source') || 'none',
         sampleName: formData.get('sample-audio-select') || '',
-        attenuation: parseInt(formData.get('attenuation')) || 0,
-        fadeIn: parseInt(formData.get('fade-in')) || 3000,
-        fadeOut: parseInt(formData.get('fade-out')) || 6000,
+        attenuation: parseInt(formData.get('attenuation')) ?? 0,
+        fadeIn: parseInt(formData.get('fade-in')) ?? 3000,
+        fadeOut: parseInt(formData.get('fade-out')) ?? 6000,
       };
 
       const projectData = {
@@ -1405,9 +1405,9 @@ export class AppController {
             await this.audioService.decodeAudioData(soundArrayBuffer);
 
 
-          const attenuation = parseInt(formData.get('attenuation')) || 0;
-          const fadeIn = parseInt(formData.get('fade-in')) || 3000;
-          const fadeOut = parseInt(formData.get('fade-out')) || 6000;
+          const attenuation = parseInt(formData.get('attenuation')) ?? 0;
+          const fadeIn = parseInt(formData.get('fade-in')) ?? 3000;
+          const fadeOut = parseInt(formData.get('fade-out')) ?? 6000;
 
           finalBuffer = this.audioService.mixBuffers(
             finalBuffer,
@@ -1509,9 +1509,9 @@ export class AppController {
             await this.audioService.decodeAudioData(soundArrayBuffer);
 
 
-          const attenuation = parseInt(formData.get('attenuation')) || 0;
-          const fadeIn = parseInt(formData.get('fade-in')) || 3000;
-          const fadeOut = parseInt(formData.get('fade-out')) || 6000;
+          const attenuation = parseInt(formData.get('attenuation')) ?? 0;
+          const fadeIn = parseInt(formData.get('fade-in')) ?? 3000;
+          const fadeOut = parseInt(formData.get('fade-out')) ?? 6000;
 
           finalBuffer = this.audioService.mixBuffers(
             finalBuffer,
@@ -1612,9 +1612,9 @@ export class AppController {
             await this.audioService.decodeAudioData(soundArrayBuffer);
 
 
-          const attenuation = parseInt(formData.get('attenuation')) || 0;
-          const fadeIn = parseInt(formData.get('fade-in')) || 3000;
-          const fadeOut = parseInt(formData.get('fade-out')) || 6000;
+          const attenuation = parseInt(formData.get('attenuation')) ?? 0;
+          const fadeIn = parseInt(formData.get('fade-in')) ?? 3000;
+          const fadeOut = parseInt(formData.get('fade-out')) ?? 6000;
 
           finalBuffer = this.audioService.mixBuffers(
             finalBuffer,
