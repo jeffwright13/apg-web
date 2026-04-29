@@ -23,6 +23,7 @@ export class AppController {
     this.currentDownloadUrl = null;
     this.playBtn = null;
     this.stopBtn = null;
+    this._eqPlayHandler = null;
 
     // Services
     this.fileService = new FileService();
@@ -1456,10 +1457,22 @@ export class AppController {
       this.currentDownloadUrl = null;
     }
     
-    // Initialize EQ when audio is loaded
-    this.audioPlayer.addEventListener('loadedmetadata', () => {
-      this.initializeAudioEQ();
-    }, { once: true });
+    // Initialize EQ and resume AudioContext on play.
+    // On iOS, AudioContext starts suspended and createMediaElementSource requires
+    // a user gesture — so we defer both to the play event (tap = user gesture).
+    if (this._eqPlayHandler) {
+      this.audioPlayer.removeEventListener('play', this._eqPlayHandler);
+    }
+    this._eqPlayHandler = () => {
+      if (!this.audioService.sourceNode) {
+        this.initializeAudioEQ();
+      }
+      const ctx = this.audioService.audioContext;
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+    };
+    this.audioPlayer.addEventListener('play', this._eqPlayHandler);
   }
   
   /**
