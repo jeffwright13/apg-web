@@ -387,7 +387,12 @@ export class AudioService {
    */
   initializeEQ(audioElement) {
     const context = this.getAudioContext();
-    
+
+    // iOS: AudioContext starts suspended; resume it now that we're inside a user gesture
+    if (context.state === 'suspended') {
+      context.resume().catch(() => {});
+    }
+
     // Disconnect existing nodes if any
     this.disconnectEQ();
     
