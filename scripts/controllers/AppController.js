@@ -24,6 +24,10 @@ export class AppController {
     this.playBtn = null;
     this.stopBtn = null;
     this._eqPlayHandler = null;
+    this.keepAwakeSection = null;
+    this.keepAwakeToggle = null;
+    this._wakeLockSentinel = null;
+    this.keepAwakeEnabled = true;
 
     // Services
     this.fileService = new FileService();
@@ -58,6 +62,16 @@ export class AppController {
     this.downloadBtn = document.getElementById('download-btn');
     this.playBtn = document.getElementById('play-btn');
     this.stopBtn = document.getElementById('stop-btn');
+    this.keepAwakeSection = document.getElementById('keep-awake-section');
+    this.keepAwakeToggle = document.getElementById('keep-awake-toggle');
+
+    const savedKeepAwake = localStorage.getItem('keepAwakeEnabled');
+    this.keepAwakeEnabled = savedKeepAwake !== 'false';
+    if (this.keepAwakeToggle) {
+      this.keepAwakeToggle.checked = this.keepAwakeEnabled;
+      this.keepAwakeToggle.addEventListener('change', () => this.handleKeepAwakeToggle());
+    }
+    document.addEventListener('visibilitychange', () => this.handleVisibilityChange());
 
     this.attachEventListeners();
     
@@ -515,6 +529,12 @@ export class AppController {
 
     if (this.stopBtn) {
       this.stopBtn.addEventListener('click', () => this.handleStop());
+    }
+
+    if (this.audioPlayer) {
+      this.audioPlayer.addEventListener('play', () => this.acquireWakeLock());
+      this.audioPlayer.addEventListener('pause', () => this.releaseWakeLock());
+      this.audioPlayer.addEventListener('ended', () => this.releaseWakeLock());
     }
 
     // Clear individual file inputs
@@ -1354,6 +1374,7 @@ export class AppController {
       this.progressContainer.style.display = 'block';
       document.getElementById('playback-controls').style.display = 'none';
       document.getElementById('download-controls').style.display = 'none';
+      if (this.keepAwakeSection) this.keepAwakeSection.style.display = 'none';
       this.generateBtn.disabled = true;
       this.stopGenerationBtn.style.display = 'block';
 
@@ -1451,6 +1472,7 @@ export class AppController {
     this.progressContainer.style.display = 'none';
     document.getElementById('playback-controls').style.display = 'none';
     document.getElementById('download-controls').style.display = 'block';
+    if (this.keepAwakeSection) this.keepAwakeSection.style.display = 'block';
     this.downloadBtn.textContent = 'Generate and Download Audio File';
     if (this.currentDownloadUrl) {
       URL.revokeObjectURL(this.currentDownloadUrl);
@@ -1496,6 +1518,7 @@ export class AppController {
     this.progressContainer.style.display = 'block';
     playbackControls.style.display = 'block';
     downloadControls.style.display = 'none';
+    if (this.keepAwakeSection) this.keepAwakeSection.style.display = 'block';
 
     this.playBtn.disabled = false;
     this.stopBtn.disabled = true;
@@ -1504,6 +1527,7 @@ export class AppController {
   async handlePlay() {
     if (!this.currentPhrases || this.isPlaying) return;
 
+    await this.acquireWakeLock();
     try {
       this.isPlaying = true;
       this.playBtn.disabled = true;
@@ -1531,16 +1555,52 @@ export class AppController {
       this.playBtn.disabled = false;
       this.stopBtn.disabled = true;
       this.generateBtn.disabled = false;
+      await this.releaseWakeLock();
     }
   }
 
   handleStop() {
     this.ttsService.stopSpeech();
+    this.releaseWakeLock();
     this.isPlaying = false;
     this.playBtn.disabled = false;
     this.stopBtn.disabled = true;
     this.generateBtn.disabled = false;
     this.updateProgress(0, 'Playback stopped');
+  }
+
+  handleKeepAwakeToggle() {
+    this.keepAwakeEnabled = this.keepAwakeToggle.checked;
+    localStorage.setItem('keepAwakeEnabled', String(this.keepAwakeEnabled));
+    if (!this.keepAwakeEnabled) {
+      this.releaseWakeLock();
+    }
+  }
+
+  handleVisibilityChange() {
+    if (!document.hidden && this.keepAwakeEnabled && this.isPlaying) {
+      this.acquireWakeLock();
+    }
+  }
+
+  async acquireWakeLock() {
+    if (!this.keepAwakeEnabled || !navigator.wakeLock) return;
+    try {
+      this._wakeLockSentinel = await navigator.wakeLock.request('screen');
+    } catch {
+      // OS refused (low battery, page not visible, etc.) — play continues without lock
+    }
+  }
+
+  async releaseWakeLock() {
+    if (!this._wakeLockSentinel) return;
+    const sentinel = this._wakeLockSentinel;
+    this._wakeLockSentinel = null;
+    try {
+      await sentinel.release();
+    } catch {
+      // already released (e.g. tab hidden) — ignore
+    }
   }
 
   /**
