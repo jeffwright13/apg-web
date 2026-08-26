@@ -45,7 +45,15 @@
     <div id="offline-notice" class="offline-notice">
       ⚠️ <strong>No Internet Connection:</strong> Some features may not work properly. Please connect to the internet and reload the page.
     </div>
-    
+
+    <!-- Crash Recovery Notice — populated by AppController if a previous
+         generation attempt left a breadcrumb without clearing it, meaning
+         the tab was reloaded/killed mid-generation. -->
+    <div
+      id="crash-breadcrumb-banner"
+      style="display: none; background: #f59f00; color: #1a1a1a; padding: 0.75rem 1rem; text-align: center; font-weight: 500;"
+    ></div>
+
     <main class="container">
       <header>
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
