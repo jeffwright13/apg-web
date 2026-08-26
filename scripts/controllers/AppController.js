@@ -10,6 +10,7 @@ import { TTSCacheService } from '../services/TTSCacheService.js';
 import { ProjectCacheService } from '../services/ProjectCacheService.js';
 import { TextEditorService } from '../services/TextEditorService.js';
 import { SampleAudioService } from '../services/SampleAudioService.js';
+import { BreadcrumbService } from '../services/BreadcrumbService.js';
 import { parseTextFile } from '../utils/parser.js';
 
 export class AppController {
@@ -37,6 +38,8 @@ export class AppController {
     this.projectCache = new ProjectCacheService();
     this.editorService = new TextEditorService();
     this.sampleAudioService = new SampleAudioService();
+    this.breadcrumbs = new BreadcrumbService();
+    this.crashBanner = null;
 
     // State
     this.currentAudioBlob = null;
@@ -64,6 +67,8 @@ export class AppController {
     this.stopBtn = document.getElementById('stop-btn');
     this.keepAwakeSection = document.getElementById('keep-awake-section');
     this.keepAwakeToggle = document.getElementById('keep-awake-toggle');
+    this.crashBanner = document.getElementById('crash-breadcrumb-banner');
+    this.checkForCrashBreadcrumb();
 
     const savedKeepAwake = localStorage.getItem('keepAwakeEnabled');
     this.keepAwakeEnabled = savedKeepAwake !== 'false';
@@ -1301,6 +1306,26 @@ export class AppController {
   }
 
   /**
+   * Check for a breadcrumb left by a generation run that never reached
+   * handleSubmit's finally block — meaning the browser reloaded or killed
+   * the tab mid-generation. Reports the last stage reached, then clears it.
+   */
+  checkForCrashBreadcrumb() {
+    const last = this.breadcrumbs.getLastIncomplete();
+    if (!last) return;
+
+    this.breadcrumbs.clear();
+
+    if (!this.crashBanner) return;
+
+    const when = new Date(last.timestamp).toLocaleTimeString();
+    const metaStr = last.meta && Object.keys(last.meta).length ? ` (${JSON.stringify(last.meta)})` : '';
+    this.crashBanner.textContent =
+      `⚠️ Last generation attempt (${when}) didn't finish — it stopped after: "${last.stage}"${metaStr}`;
+    this.crashBanner.style.display = 'block';
+  }
+
+  /**
    * Core audio generation pipeline shared by all API-based TTS engines.
    * Generates speech per phrase, concatenates buffers, optionally mixes
    * background audio, then stores the result and shows the output UI.
@@ -1312,6 +1337,7 @@ export class AppController {
    */
   async generateAndFinalize(phrases, ttsEngine, ttsOptions, soundFile, formData) {
     this.updateProgress(20, 'Generating speech...');
+    this.breadcrumbs.mark('speech-loop-start', { totalPhrases: phrases.length });
     const audioBuffers = [];
 
     for (let i = 0; i < phrases.length; i++) {
@@ -1335,31 +1361,42 @@ export class AppController {
       if (phrase.duration > 0) {
         audioBuffers.push(this.audioService.createSilence(phrase.duration));
       }
+
+      this.breadcrumbs.mark('phrase-generated', { index: i + 1, total: phrases.length });
     }
 
     this.updateProgress(85, 'Combining audio...');
+    this.breadcrumbs.mark('concatenate-start', { bufferCount: audioBuffers.length });
     let finalBuffer = this.audioService.concatenateBuffers(audioBuffers);
+    this.breadcrumbs.mark('concatenate-done');
 
     if (soundFile && soundFile.size > 0) {
       this.updateProgress(90, 'Mixing with background sound...');
+      this.breadcrumbs.mark('background-decode-start', { soundFileSize: soundFile.size });
       const soundArrayBuffer = await this.fileService.readAudioFile(soundFile);
       const backgroundBuffer = await this.audioService.decodeAudioData(soundArrayBuffer);
+      this.breadcrumbs.mark('background-decode-done');
 
       const attenuation = parseInt(formData.get('attenuation')) ?? 0;
       const fadeIn = parseInt(formData.get('fade-in')) ?? 3000;
       const fadeOut = parseInt(formData.get('fade-out')) ?? 6000;
 
+      this.breadcrumbs.mark('mix-start');
       finalBuffer = this.audioService.mixBuffers(finalBuffer, backgroundBuffer, { attenuation });
       finalBuffer = this.audioService.applyFades(finalBuffer, { fadeIn, fadeOut });
+      this.breadcrumbs.mark('mix-done');
     }
 
     this.updateProgress(95, 'Finalizing...');
     this.currentAudioBuffer = finalBuffer;
+    this.breadcrumbs.mark('wav-encode-start');
     this.currentAudioBlob = this.audioService.audioBufferToWav(finalBuffer);
+    this.breadcrumbs.mark('wav-encode-done');
 
     this.updateProgress(100, 'Complete!');
     await this.saveCurrentProject();
     this.showOutput();
+    this.breadcrumbs.mark('complete');
   }
 
   async handleSubmit(event) {
@@ -1462,6 +1499,10 @@ export class AppController {
       this.isGenerating = false;
       this.generateBtn.disabled = false;
       this.stopGenerationBtn.style.display = 'none';
+      // Reaching here at all means JS kept running to completion (success,
+      // handled error, or cancel) — only a tab kill leaves a breadcrumb
+      // behind for the next load's checkForCrashBreadcrumb() to find.
+      this.breadcrumbs.clear();
     }
   }
 
