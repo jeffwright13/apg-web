@@ -12,6 +12,11 @@ class MockAudioContext {
   }
 
   createBuffer(numChannels, length, sampleRate) {
+    // Real AudioBuffers return the same backing Float32Array on every
+    // getChannelData() call for a given channel — mutations persist. Mirror
+    // that here so tests can verify in-place mixing (mixBuffers relies on it
+    // to avoid allocating a redundant full-length copy of the output).
+    const channelData = Array.from({ length: numChannels }, () => new Float32Array(length));
     const buffer = {
       numberOfChannels: numChannels,
       length: length,
@@ -21,7 +26,7 @@ class MockAudioContext {
         if (channel >= numChannels) {
           throw new Error('Channel index out of range');
         }
-        return new Float32Array(length);
+        return channelData[channel];
       },
     };
     return buffer;
@@ -339,6 +344,26 @@ describe('AudioService', () => {
       expect(result.length).toBe(10000); // Length of speech buffer
     });
 
+    test('wraps background samples correctly at the loop boundary', () => {
+      const context = audioService.getAudioContext();
+      const buffer1 = context.createBuffer(1, 5, 44100); // Speech, silent
+      const buffer2 = context.createBuffer(1, 2, 44100); // Background, 2 samples
+
+      const bgData = buffer2.getChannelData(0);
+      bgData[0] = 0.1;
+      bgData[1] = 0.2;
+
+      const result = audioService.mixBuffers(buffer1, buffer2, { attenuation: 0 });
+      const resultData = result.getChannelData(0);
+
+      // Background loops: index 0,1,0,1,0 across the 5-sample output
+      expect(resultData[0]).toBeCloseTo(0.1);
+      expect(resultData[1]).toBeCloseTo(0.2);
+      expect(resultData[2]).toBeCloseTo(0.1);
+      expect(resultData[3]).toBeCloseTo(0.2);
+      expect(resultData[4]).toBeCloseTo(0.1);
+    });
+
     test('applies attenuation to background', () => {
       const context = audioService.getAudioContext();
       const buffer1 = context.createBuffer(2, 1000, 44100);
@@ -353,13 +378,57 @@ describe('AudioService', () => {
       const resultNoAtten = audioService.mixBuffers(buffer1, buffer2, {
         attenuation: 0,
       });
-      const resultWithAtten = audioService.mixBuffers(buffer1, buffer2, {
+      const bufferForAtten1 = context.createBuffer(2, 1000, 44100);
+      const bufferForAtten2 = context.createBuffer(2, 1000, 44100);
+      bufferForAtten2.getChannelData(0).set(data2);
+      const resultWithAtten = audioService.mixBuffers(bufferForAtten1, bufferForAtten2, {
         attenuation: -6,
       }); // -6dB
 
       // With attenuation, background should be quieter
-      expect(resultWithAtten).toBeDefined();
-      expect(resultNoAtten).toBeDefined();
+      const attenFactor = Math.pow(10, -6 / 20);
+      expect(resultNoAtten.getChannelData(0)[0]).toBeCloseTo(0.5);
+      expect(resultWithAtten.getChannelData(0)[0]).toBeCloseTo(0.5 * attenFactor);
+      expect(resultWithAtten.getChannelData(0)[0]).toBeLessThan(resultNoAtten.getChannelData(0)[0]);
+    });
+
+    test('sums speech and background samples', () => {
+      const context = audioService.getAudioContext();
+      const buffer1 = context.createBuffer(1, 4, 44100);
+      const buffer2 = context.createBuffer(1, 4, 44100);
+
+      buffer1.getChannelData(0).set([0.1, 0.2, 0.3, 0.4]);
+      buffer2.getChannelData(0).set([0.01, 0.02, 0.03, 0.04]);
+
+      const result = audioService.mixBuffers(buffer1, buffer2, { attenuation: 0 });
+      const data = result.getChannelData(0);
+
+      expect(data[0]).toBeCloseTo(0.11);
+      expect(data[1]).toBeCloseTo(0.22);
+      expect(data[2]).toBeCloseTo(0.33);
+      expect(data[3]).toBeCloseTo(0.44);
+    });
+
+    test('mixes in place into buffer1 when buffer1 already has enough channels', () => {
+      const context = audioService.getAudioContext();
+      const buffer1 = context.createBuffer(2, 1000, 44100); // Stereo speech
+      const buffer2 = context.createBuffer(1, 1000, 44100); // Mono background
+
+      const result = audioService.mixBuffers(buffer1, buffer2);
+
+      // No redundant full-length buffer allocated — the result IS buffer1.
+      expect(result).toBe(buffer1);
+    });
+
+    test('allocates a new buffer only when background has more channels than buffer1', () => {
+      const context = audioService.getAudioContext();
+      const buffer1 = context.createBuffer(1, 1000, 44100); // Mono speech
+      const buffer2 = context.createBuffer(2, 1000, 44100); // Stereo background
+
+      const result = audioService.mixBuffers(buffer1, buffer2);
+
+      expect(result).not.toBe(buffer1);
+      expect(result.numberOfChannels).toBe(2);
     });
   });
 
