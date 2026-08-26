@@ -2,8 +2,8 @@
 
 Browser-based audio program generator - creates spoken audio from text with optional background music.
 
-[![Version](https://img.shields.io/badge/version-1.9.10-blue.svg)](https://github.com/jeffwright13/apg-web/releases/tag/v1.9.10)
-[![Tests](https://img.shields.io/badge/tests-315%20passing-brightgreen.svg)](https://github.com/jeffwright13/apg-web)
+[![Version](https://img.shields.io/github/package-json/v/jeffwright13/apg-web?color=blue)](https://github.com/jeffwright13/apg-web/releases)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](https://github.com/jeffwright13/apg-web)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## Features
@@ -32,15 +32,9 @@ Browser-based audio program generator - creates spoken audio from text with opti
 4. Open `http://localhost:8080` in your browser
 5. Upload a phrase file and generate audio!
 
-## What's New in v1.9.10
+## Changelog
 
-### Code Quality & Bug Fixes
-- **Bug fix**: Background audio settings (`attenuation`, `fade-in`, `fade-out`) now correctly preserve zero values when saving projects (was coercing `0` to default via `||` instead of `??`)
-- **Refactor**: Consolidated three near-identical TTS engine pipelines in `handleSubmit` into shared `buildTtsOptions()` and `generateAndFinalize()` methods — eliminates ~280 lines of duplicated code
-- **Cleanup**: Removed dead `applySyntaxHighlighting()` and `generateLineNumbers()` methods and their associated CSS rules
-- **Tests**: 315 passing tests (up from 161 at v1.0.0), covering all new and refactored logic
-
-See the [full changelog](https://github.com/jeffwright13/apg-web/releases/tag/v1.9.10) for details.
+See [GitHub Releases](https://github.com/jeffwright13/apg-web/releases) for version history and release notes.
 
 ## Text-to-Speech Engines
 
