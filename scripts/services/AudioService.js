@@ -109,7 +109,6 @@ export class AudioService {
    * @returns {AudioBuffer} Mixed audio buffer
    */
   mixBuffers(buffer1, buffer2, options = {}) {
-    const context = this.getAudioContext();
     const sampleRate = buffer1.sampleRate;
     const numChannels = Math.max(
       buffer1.numberOfChannels,
@@ -120,37 +119,33 @@ export class AudioService {
     const attenuation = options.attenuation || 0;
     const attenuationFactor = Math.pow(10, attenuation / 20);
 
-    // Loop or truncate buffer2 to match buffer1 length
-    const buffer2Data = [];
-    for (let channel = 0; channel < buffer2.numberOfChannels; channel++) {
-      const sourceData = buffer2.getChannelData(channel);
-      const loopedData = new Float32Array(length);
-
-      for (let i = 0; i < length; i++) {
-        loopedData[i] = sourceData[i % sourceData.length];
-      }
-
-      buffer2Data.push(loopedData);
-    }
-
-    // Create mixed buffer
-    const mixed = context.createBuffer(numChannels, length, sampleRate);
+    // Mix in place into buffer1 when it already has enough channels to hold
+    // the result — avoids allocating a second full-length copy of the whole
+    // program purely to hold the mix output, which for a long program with a
+    // background track is real memory pressure on mobile browsers.
+    const target =
+      numChannels <= buffer1.numberOfChannels
+        ? buffer1
+        : this.getAudioContext().createBuffer(numChannels, length, sampleRate);
 
     for (let channel = 0; channel < numChannels; channel++) {
       const data1 = buffer1.getChannelData(
         Math.min(channel, buffer1.numberOfChannels - 1)
       );
-      const data2 =
-        buffer2Data[Math.min(channel, buffer2Data.length - 1)] ||
-        new Float32Array(length);
-      const mixedData = mixed.getChannelData(channel);
+      const data2 = buffer2.getChannelData(
+        Math.min(channel, buffer2.numberOfChannels - 1)
+      );
+      const destData = target.getChannelData(channel);
 
+      // Index buffer2 with a wraparound modulo rather than pre-looping it
+      // out to buffer1's full length — that pre-loop was itself a redundant
+      // full-length copy of the background track.
       for (let i = 0; i < length; i++) {
-        mixedData[i] = data1[i] + data2[i] * attenuationFactor;
+        destData[i] = data1[i] + data2[i % data2.length] * attenuationFactor;
       }
     }
 
-    return mixed;
+    return target;
   }
 
   /**
